@@ -1,0 +1,14 @@
+# AgentKeep local development
+
+services:
+  api:
+    build: .
+    ports:
+      - "8787:8080"
+    environment:
+      PORT: "8080"
+      SESSION_HMAC_SECRET: local-dev-secret-change-me
+      PAYMENT_ADAPTER: mock
+      PAYMENT_MODE: testnet
+      PAYTO_ADDRESS: LOCALDEVPAYTO000000000000000000000000000000
+      PUBLIC_API_BASE: http://localhost:8787

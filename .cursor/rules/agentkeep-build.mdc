@@ -1,0 +1,51 @@
+---
+description: AgentKeep build process — phases, tests, product law, security
+alwaysApply: true
+---
+
+# AgentKeep engineering rules
+
+You are working in the AgentKeep repo (wallet-scoped x402 OS primitives API). **No app code until following these rules.**
+
+## Authority
+
+1. `docs/27-algorand-x402-challenge.md` — challenge eligibility / Algorand rail / GoPlausible  
+2. `docs/21-prebuild-decisions.md` — product law  
+3. `specs/openapi.yaml` — HTTP contract  
+4. `docs/28-hackathon-impl-test-prod-roadmap.md` — hackathon calendar (H0–H8)  
+5. `docs/24-engineering-build-plan.md` — edge cases / classic phases  
+6. `AGENTS.md` — AI operating protocol  
+
+On conflict: **27 (eligibility) > 21 > OpenAPI > 28 > 24**.
+
+## Process
+
+- During hackathon: build **one H-phase at a time** (`28`). Do not skip DoD.  
+- When a phase lists **👤 Human intervention**, paste those steps and wait for `H{N} human done`.  
+- For payments, SSRF, caps, credits, tenancy: **tests first**, then code.  
+- Bug fix = regression test in the same change.  
+- Small PRs titled `phase-H{N}: …`. Never commit secrets.  
+- Prefer **thin Composite** (memory + fetch + receipts) before Sept 30.  
+- Do not expand scope (no MPP, Base/CDP during challenge, soft caps, task budgets, AgentCash branding).  
+- Infra: **Fly + Neon + R2** — **not Render**.
+
+## Hard product invariants
+
+- Wallet isolation (`algo:` tenancy; cross-wallet → 404, no leak)  
+- Hard daily cap checked before work (default $2 USDC)  
+- Free Memory/Budget GET require session or proof — never anonymous  
+- Session header on settled success only; TTL 15m  
+- Credits = spend offset only; apply before new 402; no withdraw  
+- Notify: owner-bound channels only  
+- Shared SSRF guard for fetch/trust/callbacks  
+- GoPlausible only; tag `x402-global-challenge`; one Mainnet payTo  
+- Error codes only from `docs/13-error-catalog.md`  
+
+## Async / state
+
+- Notify: return `pending`, poll for terminal status — never block on `max_wait_seconds`  
+- Explicit enums for ledger and tickets — no ambiguous “processing” after response  
+
+## When blocked
+
+Stop and ask for human ops (Algorand payTo, USDC opt-in, Fly/Neon/R2, Telegram, host secrets). **Domains/DNS only after Mainnet canary.** Do not invent production secrets.

@@ -1,0 +1,51 @@
+# AgentKeep
+
+> Wallet-scoped OS primitives for AI agents. No signup. Pay per call (x402, USDC on Base). Get JSON. Keep going.
+
+Separate product — not AgentCash / Stable*.
+
+## When to use
+
+- `/v1/memory` — scratchpad (GET free with session)
+- `/v1/artifacts` — public durable URL (90d)
+- `/v1/notify` — human approve/deny via email or Telegram
+- `/v1/inbox` — inbound email poll
+- `/v1/budget` — caps + credits + receipts
+- `/v1/fetch` — URL → markdown ($0.01 flat)
+- `/v1/trust` — probe other origins for x402
+- `/v1/owner/*` — bind channels, caps, delete
+
+## Base URLs (planned)
+
+- API: https://api.agentkeep.app
+- Artifacts: https://artifacts.agentkeep.app
+- OpenAPI: https://api.agentkeep.app/openapi.json
+- Skill: https://agentkeep.app/skill.md
+
+## Auth
+
+1. Paid routes: x402 proof (USDC on Base, CDP)
+2. Free tenant GETs: `X-AgentKeep-Session` (15m after paid settle) or proof
+3. First settled pay = owner
+
+## Prices (USDC) — locked intent
+
+| Route | Price |
+|-------|-------|
+| PUT /v1/memory/{key} | $0.001 |
+| GET /v1/memory/{key} | free + session |
+| DELETE /v1/memory/{key} | $0.0005 |
+| GET /v1/memory | $0.001 / page |
+| POST /v1/artifacts | $0.005 + $0.002/MiB prepaid |
+| POST /v1/notify | $0.02 |
+| GET /v1/notify/{id} | $0.0002 |
+| GET /v1/inbox | $0.002 / page |
+| POST /v1/inbox/{id}/ack | $0.0005 |
+| GET /v1/budget | free + session |
+| GET /v1/budget/receipts | $0.002 / page |
+| POST /v1/fetch | $0.01 |
+| GET /v1/trust | $0.002 |
+
+Default hard daily cap: $2. Branch on `error.code`.
+
+Status: pre-launch; see docs/21-prebuild-decisions.md

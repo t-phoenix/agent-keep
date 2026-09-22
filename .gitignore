@@ -1,0 +1,45 @@
+# Dependencies & build
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+*.tsbuildinfo
+
+# Env / secrets — never commit
+.env
+.env.local
+.env.*.local
+.env.production
+!.env.example
+
+# Package managers
+.pnpm-store/
+.yarn/
+
+# Vitest / Vite temp
+.vite/
+**/.vite-temp/
+
+# Local data
+apps/api/data/
+*.sqlite
+*.db
+
+# Logs & OS
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Keys / wallets
+*.pem
+*.key
+id_ed25519
+id_rsa
+**/mnemonics*
+**/secrets/

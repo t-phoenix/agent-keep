@@ -1,0 +1,788 @@
+openapi: 3.1.0
+info:
+  title: AgentKeep
+  version: 0.3.0-draft
+  summary: Wallet-scoped OS primitives for AI agents.
+  description: |
+    Pay-per-call continuity infrastructure. x402 USDC on Algorand (GoPlausible facilitator). Challenge tag: x402-global-challenge.
+    Canonical locks: docs/21-prebuild-decisions.md. Flows: docs/22-flows-and-build-plan.md.
+
+    Auth: payment proof on paid routes; X-AgentKeep-Session (15m) for free tenant GETs.
+    First settled pay = owner. Hard daily cap default $2 USDC.
+  contact:
+    name: AgentKeep
+    url: https://agentkeep.app
+  license:
+    name: Proprietary-for-now
+
+servers:
+  - url: https://api.agentkeep.app
+    description: Production (planned)
+  - url: https://api.staging.agentkeep.app
+    description: Staging (planned)
+
+tags:
+  - name: memory
+  - name: artifacts
+  - name: notify
+  - name: inbox
+  - name: budget
+  - name: fetch
+  - name: trust
+  - name: owner
+  - name: meta
+
+paths:
+  /health:
+    get:
+      tags: [meta]
+      operationId: getHealth
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+
+  /openapi.json:
+    get:
+      tags: [meta]
+      operationId: getOpenApi
+      security: []
+      responses:
+        "200":
+          description: OpenAPI document
+
+  /v1/memory/{key}:
+    put:
+      tags: [memory]
+      operationId: putMemory
+      description: "Price: $0.001 USDC. Default TTL 7d if omitted."
+      security: [{ x402: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Key"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - name: ttl_seconds
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 2592000 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value: {}
+                content_type: { type: string, default: application/json }
+          text/plain:
+            schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MemoryMeta" }
+          description: Stored
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        default: { $ref: "#/components/responses/Error" }
+    get:
+      tags: [memory]
+      operationId: getMemory
+      description: "Free. Requires X-AgentKeep-Session or wallet proof. Rate limit 60/min."
+      security: [{ session: [] }, { x402: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Key"
+      responses:
+        "200":
+          description: Found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MemoryObject" }
+        "401": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+        default: { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [memory]
+      operationId: deleteMemory
+      description: "Price: $0.0005 USDC."
+      security: [{ x402: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Key"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Deleted with receipt
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [key, deleted, receipt]
+                properties:
+                  key: { type: string }
+                  deleted: { type: boolean }
+                  receipt: { $ref: "#/components/schemas/Receipt" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        "404": { $ref: "#/components/responses/Error" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /v1/memory:
+    get:
+      tags: [memory]
+      operationId: listMemory
+      description: "Price: $0.001 USDC per page."
+      security: [{ x402: [] }]
+      parameters:
+        - name: prefix
+          in: query
+          schema: { type: string }
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Page of keys
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MemoryList" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /v1/artifacts:
+    post:
+      tags: [artifacts]
+      operationId: createArtifact
+      description: |
+        Public URL on artifacts.agentkeep.app. Price: $0.005 + $0.002 × ceil(max_bytes/1MiB).
+        Require max_bytes (query or form). Retention 90d.
+      security: [{ x402: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - name: max_bytes
+          in: query
+          required: true
+          schema: { type: integer, minimum: 1, maximum: 10485760 }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                content_type: { type: string }
+                max_bytes: { type: integer }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Artifact" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /v1/notify:
+    post:
+      tags: [notify]
+      operationId: createNotify
+      description: "Price: $0.02. Requires bound channel. Optional callback_url."
+      security: [{ x402: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NotifyCreate" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NotifyTicket" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        "409": { $ref: "#/components/responses/Error" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /v1/notify/{ticket_id}:
+    get:
+      tags: [notify]
+      operationId: getNotify
+      description: "Price: $0.0002 USDC."
+      security: [{ x402: [] }]
+      parameters:
+        - name: ticket_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Ticket
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NotifyTicket" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        "404": { $ref: "#/components/responses/Error" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /v1/inbox:
+    get:
+      tags: [inbox]
+      operationId: listInbox
+      description: "Price: $0.002/page. Provisions inbox address on first call."
+      security: [{ x402: [] }]
+      parameters:
+        - name: unread
+          in: query
+          schema: { type: boolean }
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InboxList" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /v1/inbox/{message_id}/ack:
+    post:
+      tags: [inbox]
+      operationId: ackInbox
+      description: "Price: $0.0005 USDC."
+      security: [{ x402: [] }]
+      parameters:
+        - name: message_id
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Acked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InboxMessage" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        "404": { $ref: "#/components/responses/Error" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /v1/budget:
+    get:
+      tags: [budget]
+      operationId: getBudget
+      description: "Free. Requires session or proof. Rate limit 30/min."
+      security: [{ session: [] }, { x402: [] }]
+      responses:
+        "200":
+          description: Budget snapshot
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Budget" }
+        "401": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /v1/budget/receipts:
+    get:
+      tags: [budget]
+      operationId: listReceipts
+      description: "Price: $0.002 USDC per page."
+      security: [{ x402: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Receipt page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReceiptList" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /v1/fetch:
+    post:
+      tags: [fetch]
+      operationId: fetchUrl
+      description: "Flat price $0.01 USDC. SSRF-protected. Truncates at max_bytes."
+      security: [{ x402: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FetchRequest" }
+      responses:
+        "200":
+          description: Extracted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FetchResponse" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /v1/trust:
+    get:
+      tags: [trust]
+      operationId: getTrust
+      description: "Price: $0.002. HEAD/GET probe ≤3s. Rate 10/min."
+      security: [{ x402: [] }]
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema: { type: string, format: uri }
+      responses:
+        "200":
+          description: Probe result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrustResult" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /v1/owner/bind/email:
+    post:
+      tags: [owner]
+      operationId: bindEmail
+      description: "Price: $0.01. Sends magic link to email."
+      security: [{ x402: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "202":
+          description: Confirmation email sent
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, receipt]
+                properties:
+                  status: { type: string, enum: [confirmation_sent] }
+                  receipt: { $ref: "#/components/schemas/Receipt" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /v1/owner/bind/telegram:
+    post:
+      tags: [owner]
+      operationId: bindTelegram
+      description: "Price: $0.01. Returns bot deep_link for /start token."
+      security: [{ x402: [] }]
+      responses:
+        "200":
+          description: Deep link
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deep_link, expires_at, receipt]
+                properties:
+                  deep_link: { type: string, format: uri }
+                  expires_at: { type: string, format: date-time }
+                  receipt: { $ref: "#/components/schemas/Receipt" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /v1/owner/caps:
+    put:
+      tags: [owner]
+      operationId: putCaps
+      description: "Price: $0.001. Requires OTP to bound channel. Hard caps only. Max $50/day."
+      security: [{ x402: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [daily_usdc_minor, otp]
+              properties:
+                daily_usdc_minor:
+                  type: integer
+                  minimum: 0
+                  maximum: 50000000
+                otp: { type: string, minLength: 6, maxLength: 8 }
+      responses:
+        "200":
+          description: Caps updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Budget" }
+        "401": { $ref: "#/components/responses/Error" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /v1/owner/otp:
+    post:
+      tags: [owner]
+      operationId: requestOtp
+      description: "Free. Rate limit 5/hour/wallet. Sends OTP to bound email and/or Telegram."
+      security: [{ session: [] }, { x402: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel: { type: string, enum: [email, telegram, both], default: both }
+      responses:
+        "202":
+          description: OTP sent
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, enum: [otp_sent] }
+        "401": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /v1/owner/delete:
+    post:
+      tags: [owner]
+      operationId: deleteWalletData
+      description: "Price: $0.01. OTP required. Tombstones memory/inbox/artifacts; keeps ledger."
+      security: [{ x402: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [otp, confirm]
+              properties:
+                otp: { type: string }
+                confirm: { type: string, enum: [DELETE] }
+      responses:
+        "202":
+          description: Deletion scheduled
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, receipt]
+                properties:
+                  status: { type: string, enum: [deletion_scheduled] }
+                  receipt: { $ref: "#/components/schemas/Receipt" }
+        "401": { $ref: "#/components/responses/Error" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        default: { $ref: "#/components/responses/Error" }
+
+components:
+  securitySchemes:
+    x402:
+      type: apiKey
+      in: header
+      name: PAYMENT-SIGNATURE
+      description: |
+        x402 payment proof as verified by GoPlausible on Algorand.
+        Exact companion headers TBD after H1 facilitator spike.
+        402 responses include challenge: asset=USDC, network=ALGORAND_Mainnet_CAIP2 (or Testnet), ASA 31566704 (or 10458941), extra.tag=x402-global-challenge.
+    session:
+      type: apiKey
+      in: header
+      name: X-AgentKeep-Session
+      description: Opaque session minted/refreshed after settled paid calls. TTL 15 minutes.
+
+  parameters:
+    Key:
+      name: key
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 256 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema: { type: string, maxLength: 128 }
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+
+  schemas:
+    ErrorBody:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code:
+              type: string
+              enum:
+                - payment_required
+                - payment_invalid
+                - payment_insufficient
+                - payment_replay
+                - payment_unavailable
+                - session_required
+                - session_expired
+                - budget_exceeded
+                - rate_limited
+                - unauthorized
+                - forbidden
+                - channel_not_bound
+                - otp_required
+                - otp_invalid
+                - not_found
+                - conflict
+                - validation_error
+                - payload_too_large
+                - unsupported_media_type
+                - ssrf_blocked
+                - upstream_timeout
+                - upstream_error
+                - inbox_full
+                - storage_unavailable
+                - internal_error
+            message: { type: string }
+            request_id: { type: string }
+            details: { type: object, additionalProperties: true }
+
+    Money:
+      type: object
+      required: [amount, decimals, asset, network]
+      properties:
+        amount: { type: integer }
+        decimals: { type: integer, enum: [6] }
+        asset: { type: string, enum: [USDC] }
+        network: { type: string, enum: [ALGORAND_Mainnet_CAIP2, ALGORAND_Testnet_CAIP2] }
+
+    X402Challenge:
+      type: object
+      required: [x402Version, accepts]
+      properties:
+        x402Version: { type: integer, example: 1 }
+        accepts:
+          type: array
+          items:
+            type: object
+            required: [scheme, network, maxAmountRequired, asset, payTo, resource]
+            properties:
+              scheme: { type: string, example: exact }
+              network: { type: string, enum: [ALGORAND_Mainnet_CAIP2, ALGORAND_Testnet_CAIP2] }
+              maxAmountRequired: { type: string }
+              asset: { type: string }
+              payTo: { type: string }
+              resource: { type: string }
+              description: { type: string }
+              maxTimeoutSeconds: { type: integer }
+
+    Receipt:
+      type: object
+      required: [receipt_id, route, money, status, created_at]
+      properties:
+        receipt_id: { type: string }
+        route: { type: string }
+        money: { $ref: "#/components/schemas/Money" }
+        status: { type: string, enum: [settled, credited, failed] }
+        credit_expires_at: { type: string, format: date-time, nullable: true }
+        request_id: { type: string }
+        created_at: { type: string, format: date-time }
+
+    SessionInfo:
+      type: object
+      properties:
+        session:
+          type: string
+          description: Value for X-AgentKeep-Session
+        session_expires_at: { type: string, format: date-time }
+
+    MemoryMeta:
+      allOf:
+        - type: object
+          required: [key, updated_at]
+          properties:
+            key: { type: string }
+            content_type: { type: string }
+            bytes: { type: integer }
+            expires_at: { type: string, format: date-time, nullable: true }
+            updated_at: { type: string, format: date-time }
+            receipt: { $ref: "#/components/schemas/Receipt" }
+        - { $ref: "#/components/schemas/SessionInfo" }
+
+    MemoryObject:
+      allOf:
+        - { $ref: "#/components/schemas/MemoryMeta" }
+        - type: object
+          required: [value]
+          properties:
+            value: {}
+
+    MemoryList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/MemoryMeta" }
+        next_cursor: { type: string, nullable: true }
+        receipt: { $ref: "#/components/schemas/Receipt" }
+
+    Artifact:
+      allOf:
+        - type: object
+          required: [artifact_id, url, sha256, bytes, content_type, public, created_at, expires_at]
+          properties:
+            artifact_id: { type: string }
+            url: { type: string, format: uri }
+            sha256: { type: string }
+            bytes: { type: integer }
+            content_type: { type: string }
+            public: { type: boolean, enum: [true] }
+            expires_at: { type: string, format: date-time }
+            created_at: { type: string, format: date-time }
+            receipt: { $ref: "#/components/schemas/Receipt" }
+        - { $ref: "#/components/schemas/SessionInfo" }
+
+    NotifyCreate:
+      type: object
+      required: [question, max_wait_seconds]
+      properties:
+        question: { type: string, maxLength: 4000 }
+        context: { type: object, additionalProperties: true }
+        max_wait_seconds: { type: integer, minimum: 30, maximum: 86400, default: 3600 }
+        channel: { type: string, enum: [email, telegram, both], default: both }
+        callback_url: { type: string, format: uri }
+
+    NotifyTicket:
+      type: object
+      required: [ticket_id, status, question, created_at]
+      properties:
+        ticket_id: { type: string }
+        status: { type: string, enum: [pending, approved, denied, answered, timeout, cancelled] }
+        question: { type: string }
+        channel: { type: string, enum: [email, telegram, both] }
+        answer_text: { type: string, nullable: true }
+        max_wait_seconds: { type: integer }
+        callback_url: { type: string, format: uri, nullable: true }
+        created_at: { type: string, format: date-time }
+        resolved_at: { type: string, format: date-time, nullable: true }
+        receipt: { $ref: "#/components/schemas/Receipt" }
+
+    InboxMessage:
+      type: object
+      required: [message_id, from_addr, body_text, received_at]
+      properties:
+        message_id: { type: string }
+        from_addr: { type: string }
+        subject: { type: string, nullable: true }
+        body_text: { type: string }
+        received_at: { type: string, format: date-time }
+        read_at: { type: string, format: date-time, nullable: true }
+
+    InboxList:
+      type: object
+      required: [inbox_address, items]
+      properties:
+        inbox_address: { type: string }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/InboxMessage" }
+        next_cursor: { type: string, nullable: true }
+        receipt: { $ref: "#/components/schemas/Receipt" }
+
+    Budget:
+      type: object
+      required: [spent_today_minor, daily_cap_minor, remaining_today_minor, credit_minor, asset, network]
+      properties:
+        spent_today_minor: { type: integer }
+        daily_cap_minor: { type: integer }
+        remaining_today_minor: { type: integer }
+        credit_minor: { type: integer }
+        asset: { type: string, enum: [USDC] }
+        network: { type: string, enum: [ALGORAND_Mainnet_CAIP2, ALGORAND_Testnet_CAIP2] }
+        decimals: { type: integer, enum: [6] }
+        email_bound: { type: boolean }
+        telegram_bound: { type: boolean }
+
+    ReceiptList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Receipt" }
+        next_cursor: { type: string, nullable: true }
+        receipt: { $ref: "#/components/schemas/Receipt" }
+
+    FetchRequest:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string, format: uri }
+        format: { type: string, enum: [markdown, text], default: markdown }
+        max_bytes: { type: integer, minimum: 1024, maximum: 2000000, default: 1000000 }
+
+    FetchResponse:
+      allOf:
+        - type: object
+          required: [final_url, status, content_type, body, truncated]
+          properties:
+            final_url: { type: string, format: uri }
+            status: { type: integer }
+            content_type: { type: string }
+            body: { type: string }
+            truncated: { type: boolean }
+            cache: { type: boolean }
+            receipt: { $ref: "#/components/schemas/Receipt" }
+        - { $ref: "#/components/schemas/SessionInfo" }
+
+    TrustResult:
+      type: object
+      required: [url, reachable, looks_x402, probed_at]
+      properties:
+        url: { type: string, format: uri }
+        final_url: { type: string, format: uri, nullable: true }
+        reachable: { type: boolean }
+        http_status: { type: integer, nullable: true }
+        looks_x402: { type: boolean }
+        challenge_summary: { type: object, additionalProperties: true, nullable: true }
+        latency_ms: { type: integer, nullable: true }
+        error_code: { type: string, nullable: true }
+        probed_at: { type: string, format: date-time }
+        receipt: { $ref: "#/components/schemas/Receipt" }
+
+  responses:
+    PaymentRequired:
+      description: x402 challenge (USDC on Algorand via GoPlausible)
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - { $ref: "#/components/schemas/X402Challenge" }
+              - { $ref: "#/components/schemas/ErrorBody" }
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorBody" }

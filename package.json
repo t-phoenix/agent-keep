@@ -1,0 +1,13 @@
+{
+  "name": "agentkeep",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "pnpm --filter @agentkeep/api dev",
+    "build": "pnpm --filter @agentkeep/api build",
+    "test": "pnpm --filter @agentkeep/api test",
+    "test:e2e": "pnpm --filter @agentkeep/api test:e2e",
+    "typecheck": "pnpm --filter @agentkeep/api typecheck",
+    "lint": "pnpm --filter @agentkeep/api lint"
+  }
+}

@@ -1,0 +1,17 @@
+---
+description: TypeScript API conventions for AgentKeep apps/packages
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# AgentKeep TypeScript conventions
+
+- Strict TypeScript; avoid `any`.  
+- Money: integer minor units only; never floats.  
+- Errors: throw/map to catalog `error.code`; include `request_id`.  
+- Payment verify behind an interface; mock in tests by default.  
+- SSRF logic lives in shared package; unit-test with table-driven cases.  
+- Do not log memory values, payment headers, OTP codes, or session tokens.  
+- Prefer pure functions for pricing, credit application, resource hashing — easy unit tests.  
+- DB: wallet row locks / transactions for cap + credit updates.  
+- Controllers thin; business logic in services.
