@@ -8,6 +8,7 @@ import { newRequestId, verifySessionToken } from "./lib/session.js";
 import {
   receiptJson,
   requirePaid,
+  applySettleHeaders,
   type PaymentAdapter,
 } from "./payments/adapter.js";
 import { createPaymentAdapter } from "./payments/create-adapter.js";
@@ -123,7 +124,7 @@ export function createApp(opts: CreateAppOptions) {
       expiresAt,
       updatedAt: new Date().toISOString(),
     });
-    c.header("X-AgentKeep-Session", settle.sessionToken);
+    applySettleHeaders(c, settle);
     return c.json({
       key,
       updated_at: new Date().toISOString(),
@@ -158,7 +159,7 @@ export function createApp(opts: CreateAppOptions) {
     });
     const deleted = await store.deleteMemory(settle.walletId, key);
     if (!deleted) throw new AppError("not_found", "Key not found");
-    c.header("X-AgentKeep-Session", settle.sessionToken);
+    applySettleHeaders(c, settle);
     return c.json({ deleted: true, receipt: receiptJson(config, settle, `DELETE /v1/memory/${key}`) });
   });
 
@@ -171,7 +172,7 @@ export function createApp(opts: CreateAppOptions) {
       requestId: c.get("requestId"),
     });
     const keys = await store.listMemoryKeys(settle.walletId);
-    c.header("X-AgentKeep-Session", settle.sessionToken);
+    applySettleHeaders(c, settle);
     return c.json({ keys, receipt: receiptJson(config, settle, "GET /v1/memory") });
   });
 
@@ -231,7 +232,7 @@ export function createApp(opts: CreateAppOptions) {
     } finally {
       clearTimeout(timer);
     }
-    c.header("X-AgentKeep-Session", settle.sessionToken);
+    applySettleHeaders(c, settle);
     return c.json({
       url: url.toString(),
       status,
@@ -273,7 +274,7 @@ export function createApp(opts: CreateAppOptions) {
     } finally {
       clearTimeout(timer);
     }
-    c.header("X-AgentKeep-Session", settle.sessionToken);
+    applySettleHeaders(c, settle);
     return c.json({
       url: url.toString(),
       reachable,
@@ -307,7 +308,7 @@ export function createApp(opts: CreateAppOptions) {
       requestId: c.get("requestId"),
     });
     const rows = await store.listLedger(settle.walletId, 50);
-    c.header("X-AgentKeep-Session", settle.sessionToken);
+    applySettleHeaders(c, settle);
     return c.json({
       receipts: rows,
       receipt: receiptJson(config, settle, "GET /v1/budget/receipts"),
@@ -351,7 +352,7 @@ export function createApp(opts: CreateAppOptions) {
     });
     // stash bytes in memory map via putArtifact only meta — for MVP serve via /a/:id
     artifactBytes.set(id, buf);
-    c.header("X-AgentKeep-Session", settle.sessionToken);
+    applySettleHeaders(c, settle);
     return c.json({
       id,
       url,
@@ -404,7 +405,7 @@ export function createApp(opts: CreateAppOptions) {
       expiresAt: new Date(Date.now() + maxWait * 1000).toISOString(),
     };
     await store.putNotify(ticket);
-    c.header("X-AgentKeep-Session", settle.sessionToken);
+    applySettleHeaders(c, settle);
     return c.json({
       id,
       status: "pending",
@@ -423,7 +424,7 @@ export function createApp(opts: CreateAppOptions) {
     });
     const t = await store.getNotify(settle.walletId, c.req.param("id"));
     if (!t) throw new AppError("not_found", "Ticket not found");
-    c.header("X-AgentKeep-Session", settle.sessionToken);
+    applySettleHeaders(c, settle);
     return c.json({ ...t, receipt: receiptJson(config, settle, `GET /v1/notify/${t.id}`) });
   });
 
@@ -453,7 +454,7 @@ export function createApp(opts: CreateAppOptions) {
       requestId: c.get("requestId"),
     });
     const messages = await store.listInbox(settle.walletId);
-    c.header("X-AgentKeep-Session", settle.sessionToken);
+    applySettleHeaders(c, settle);
     return c.json({
       inbox_address: `${settle.walletId.replace("algo:", "")}@inbox.agentkeep.local`,
       messages,
@@ -471,7 +472,7 @@ export function createApp(opts: CreateAppOptions) {
     });
     const ok = await store.ackInbox(settle.walletId, c.req.param("id"));
     if (!ok) throw new AppError("not_found", "Message not found");
-    c.header("X-AgentKeep-Session", settle.sessionToken);
+    applySettleHeaders(c, settle);
     return c.json({ acked: true, receipt: receiptJson(config, settle, `POST /v1/inbox/${c.req.param("id")}/ack`) });
   });
 
@@ -503,7 +504,7 @@ export function createApp(opts: CreateAppOptions) {
       w.emailBound = true;
       await store.upsertWallet(w);
     });
-    c.header("X-AgentKeep-Session", settle.sessionToken);
+    applySettleHeaders(c, settle);
     return c.json({
       status: "bound",
       confirm_url: `${config.ownerWebBase}/owner/confirm-email?token=dev`,
@@ -531,7 +532,7 @@ export function createApp(opts: CreateAppOptions) {
       w.dailyCapMinor = body.daily_cap_minor!;
       await store.upsertWallet(w);
     });
-    c.header("X-AgentKeep-Session", settle.sessionToken);
+    applySettleHeaders(c, settle);
     return c.json({
       daily_cap_minor: body.daily_cap_minor,
       receipt: receiptJson(config, settle, "PUT /v1/owner/caps"),

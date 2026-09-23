@@ -1,4 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
+import { encodePaymentResponseHeader } from "@x402/core/http";
+import type { SettleResponse } from "@x402/core/types";
 import type { AppConfig } from "../config.js";
 import { AppError } from "../errors.js";
 import { money } from "../lib/money.js";
@@ -14,6 +16,15 @@ export type PaymentProof = {
   nonce: string;
   /** Opaque proof blob from client (mock: any non-empty) */
   proof: string;
+  /** Facilitator settle payload for PAYMENT-RESPONSE header (x402 clients). */
+  settleResponse?: {
+    success: boolean;
+    payer?: string;
+    transaction: string;
+    network: string;
+    errorReason?: string;
+    errorMessage?: string;
+  };
 };
 
 export type SettleOk = {
@@ -22,6 +33,8 @@ export type SettleOk = {
   sessionToken: string;
   chargedMinor: number;
   creditAppliedMinor: number;
+  /** Base64 PAYMENT-RESPONSE header value when available */
+  paymentResponseHeader?: string;
 };
 
 export interface PaymentAdapter {
@@ -86,6 +99,12 @@ export function createMockPaymentAdapter(config: AppConfig): PaymentAdapter {
         network: config.payment.network,
         nonce,
         proof: "mock",
+        settleResponse: {
+          success: true,
+          payer,
+          transaction: `mock:${nonce}`,
+          network: config.payment.caip2,
+        },
       };
     },
   };
@@ -150,6 +169,7 @@ export async function requirePaid(
         sessionToken: mintSessionToken(walletId, config.sessionHmacSecret),
         chargedMinor: existing.amountMinor,
         creditAppliedMinor: 0,
+        paymentResponseHeader: encodeSettleHeader(proof, config),
       };
     }
   }
@@ -175,7 +195,33 @@ export async function requirePaid(
     sessionToken: mintSessionToken(walletId, config.sessionHmacSecret),
     chargedMinor: charge.chargedMinor,
     creditAppliedMinor: charge.creditAppliedMinor,
+    paymentResponseHeader: encodeSettleHeader(proof, config),
   };
+}
+
+function encodeSettleHeader(proof: PaymentProof, config: AppConfig): string | undefined {
+  const settle: SettleResponse = {
+    success: true,
+    payer: proof.payer,
+    transaction: proof.settleResponse?.transaction ?? proof.proof,
+    network: (proof.settleResponse?.network ?? config.payment.caip2) as SettleResponse["network"],
+  };
+  try {
+    return encodePaymentResponseHeader(settle);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Set session + x402 PAYMENT-RESPONSE on a settled paid response. */
+export function applySettleHeaders(
+  c: { header: (name: string, value: string) => void },
+  settle: SettleOk,
+): void {
+  c.header("X-AgentKeep-Session", settle.sessionToken);
+  if (settle.paymentResponseHeader) {
+    c.header("PAYMENT-RESPONSE", settle.paymentResponseHeader);
+  }
 }
 
 export function receiptJson(

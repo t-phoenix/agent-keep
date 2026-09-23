@@ -139,9 +139,17 @@ async function main() {
   }
 
   if (response.ok) {
-    const paymentResponse = new x402HTTPClient(client).getPaymentSettleResponse((name) =>
-      response.headers.get(name),
-    );
+    let paymentResponse: unknown;
+    try {
+      paymentResponse = new x402HTTPClient(client).getPaymentSettleResponse((name) =>
+        response.headers.get(name),
+      );
+    } catch (e) {
+      paymentResponse = {
+        note: "PAYMENT-RESPONSE header missing; AgentKeep session/receipt still valid",
+        error: e instanceof Error ? e.message : String(e),
+      };
+    }
     console.log("\nPayment settled:", JSON.stringify(paymentResponse, null, 2));
     console.log("Session:", session);
     console.log("Body:", JSON.stringify(body, null, 2));

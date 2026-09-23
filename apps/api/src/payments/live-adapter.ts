@@ -313,6 +313,14 @@ export function createLivePaymentAdapter(config: AppConfig, deps: LiveAdapterDep
         network: config.payment.network,
         nonce,
         proof: settle.transaction || "settled",
+        settleResponse: {
+          success: true,
+          payer,
+          transaction: settle.transaction || nonce,
+          network: String(settle.network || wantNetwork),
+          errorReason: settle.errorReason,
+          errorMessage: settle.errorMessage,
+        },
       };
     },
   };
