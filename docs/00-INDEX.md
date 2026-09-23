@@ -99,6 +99,8 @@ Read top-to-bottom for onboarding; jump by need when building.
 | 40c | [Easy free host — Cloud Run](40c-easy-free-host-cloudrun.md) | Preferred host when Oracle/Koyeb blocked | **Active** |
 | 41 | [Dev & deploy](41-dev-and-deploy.md) | Local run, tests, Cloud Run | **Active** |
 | 42 | [Audit & forward plan](42-audit-and-forward-plan.md) | Gaps, prod env, git init | **Active** |
+| 43 | [Infra: Neon + GCP guide](43-infra-neon-gcp-guide.md) | Neon done · Cloud Run overview | **Active** |
+| 44 | [GCP dashboard: credentials & local env](44-gcp-dashboard-credentials-env.md) | Secret Manager · Run · copy to `.env` | **Active** |
 | — | [`AGENTS.md`](../AGENTS.md) | AI coding agent protocol | **Amended** |
 | — | [Templates](templates/README.md) | PRD / ADR / RFC templates | Ready |
 

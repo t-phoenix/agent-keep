@@ -9,5 +9,9 @@
     "test:e2e": "pnpm --filter @agentkeep/api test:e2e",
     "typecheck": "pnpm --filter @agentkeep/api typecheck",
     "lint": "pnpm --filter @agentkeep/api lint"
+  },
+  "dependencies": {
+    "@neon/config": "^1.7.2",
+    "@neon/env": "^1.4.3"
   }
 }
