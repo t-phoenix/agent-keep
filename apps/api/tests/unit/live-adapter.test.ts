@@ -83,7 +83,8 @@ describe("live payment adapter", () => {
     expect((challenge.extra as { tag: string }).tag).toBe("x402-global-challenge");
     expect(challenge.payTo).toBe(config.payment.payTo);
     expect(wireUsdcAsa(config)).toBe("10458941");
-    expect(wireCaip2(config)).toContain("algorand:");
+    expect(wireCaip2(config)).toContain("algorand:SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9");
+    expect(String(challenge.network)).toContain("SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9");
   });
 
   it("buildPaymentRequired encodes PAYMENT-REQUIRED envelope", () => {

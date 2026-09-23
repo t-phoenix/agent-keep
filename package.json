@@ -8,7 +8,10 @@
     "test": "pnpm --filter @agentkeep/api test",
     "test:e2e": "pnpm --filter @agentkeep/api test:e2e",
     "typecheck": "pnpm --filter @agentkeep/api typecheck",
-    "lint": "pnpm --filter @agentkeep/api lint"
+    "lint": "pnpm --filter @agentkeep/api lint",
+    "wallet:create": "pnpm --filter @agentkeep/api wallet:create",
+    "wallet:optin": "pnpm --filter @agentkeep/api wallet:optin",
+    "canary": "pnpm --filter @agentkeep/api canary"
   },
   "dependencies": {
     "@neon/config": "^1.7.2",

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import {
-  ALGORAND_MAINNET_CAIP2,
-  ALGORAND_TESTNET_CAIP2,
+  ALGORAND_MAINNET_GENESIS_HASH,
+  ALGORAND_TESTNET_GENESIS_HASH,
   USDC_MAINNET_ASA_ID,
   USDC_TESTNET_ASA_ID,
   normalizeAlgorandNetwork,
@@ -19,23 +19,47 @@ import type { PaymentAdapter, PaymentProof } from "./adapter.js";
 const MAX_TIMEOUT_SECONDS = 300;
 const FACILITATOR_TIMEOUT_MS = 10_000;
 
+/** Full-hash CAIP-2 as advertised by GoPlausible `/supported`. */
+export function fullCaip2(mode: "testnet" | "mainnet"): Network {
+  const hash = mode === "mainnet" ? ALGORAND_MAINNET_GENESIS_HASH : ALGORAND_TESTNET_GENESIS_HASH;
+  return `algorand:${hash}` as Network;
+}
+
+/** True when two Algorand network ids refer to the same chain (full or truncated CAIP-2). */
+export function sameAlgorandNetwork(a: string, b: string): boolean {
+  if (a === b) return true;
+  try {
+    return normalizeAlgorandNetwork(a) === normalizeAlgorandNetwork(b);
+  } catch {
+    return false;
+  }
+}
+
 export type LiveAdapterDeps = {
   facilitator?: FacilitatorClient;
   /** Optional override for resource URL base (defaults to PUBLIC_API_BASE). */
   resourceBase?: string;
 };
 
-/** Canonical CAIP-2 used on the x402 wire (facilitator + @x402/avm). */
+/**
+ * CAIP-2 for the x402 wire / GoPlausible facilitator.
+ * Prefer full genesis-hash form — truncated `ALGORAND_*_CAIP2` is rejected by GoPlausible verify.
+ */
 export function wireCaip2(config: AppConfig): Network {
   const fromEnv = config.payment.caip2.trim();
-  if (fromEnv) {
+  if (fromEnv.startsWith("algorand:")) {
+    // If env accidentally has truncated form, expand via known genesis hashes.
     try {
-      return normalizeAlgorandNetwork(fromEnv);
+      const short = normalizeAlgorandNetwork(fromEnv);
+      if (fromEnv === short || fromEnv.length <= short.length) {
+        return fullCaip2(config.payment.mode);
+      }
     } catch {
-      /* fall through */
+      /* use as-is */
     }
+    return fromEnv as Network;
   }
-  return (config.payment.mode === "mainnet" ? ALGORAND_MAINNET_CAIP2 : ALGORAND_TESTNET_CAIP2) as Network;
+  return fullCaip2(config.payment.mode);
 }
 
 export function wireUsdcAsa(config: AppConfig): string {
@@ -152,7 +176,7 @@ export function createLivePaymentAdapter(config: AppConfig, deps: LiveAdapterDep
           const want = wireCaip2(config);
           const kind = supported.kinds?.find((k) => {
             try {
-              return normalizeAlgorandNetwork(String(k.network)) === want && k.scheme === "exact";
+              return sameAlgorandNetwork(String(k.network), want) && k.scheme === "exact";
             } catch {
               return String(k.network).includes("algorand") && k.scheme === "exact";
             }
@@ -217,8 +241,7 @@ export function createLivePaymentAdapter(config: AppConfig, deps: LiveAdapterDep
 
       // Hard checks before facilitator round-trip
       const wantNetwork = wireCaip2(config);
-      const gotNetwork = normalizeAlgorandNetwork(String(requirements.network));
-      if (gotNetwork !== wantNetwork) {
+      if (!sameAlgorandNetwork(String(requirements.network), wantNetwork)) {
         throw new AppError("payment_invalid", "Wrong network", {
           expected: wantNetwork,
           got: requirements.network,

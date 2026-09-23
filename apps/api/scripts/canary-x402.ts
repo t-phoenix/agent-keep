@@ -12,12 +12,20 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { x402Client, wrapFetchWithPayment, x402HTTPClient } from "@x402/fetch";
-import { toClientAvmSigner, ExactAvmScheme, ALGORAND_TESTNET_CAIP2 } from "@x402/avm";
+import {
+  toClientAvmSigner,
+  ExactAvmScheme,
+  ALGORAND_TESTNET_CAIP2,
+  ALGORAND_TESTNET_GENESIS_HASH,
+} from "@x402/avm";
 import {
   ed25519SigningKeyFromWrappedSecret,
   type WrappedEd25519Seed,
 } from "@algorandfoundation/algokit-utils/crypto";
 import { seedFromMnemonic } from "@algorandfoundation/algokit-utils/algo25";
+
+/** GoPlausible `/supported` uses full genesis-hash CAIP-2 (not the truncated constant). */
+const ALGORAND_TESTNET_FULL = `algorand:${ALGORAND_TESTNET_GENESIS_HASH}`;
 
 function loadDotEnv() {
   const candidates = [
@@ -46,20 +54,36 @@ function loadDotEnv() {
 
 loadDotEnv();
 
-const mnemonic = process.env.AVM_MNEMONIC?.trim();
+function loadCanaryWalletMnemonic(): string | undefined {
+  const walletPath = resolve(process.cwd(), "../../.algorand/canary-wallet.json");
+  const alt = resolve(process.cwd(), ".algorand/canary-wallet.json");
+  for (const path of [walletPath, alt]) {
+    if (!existsSync(path)) continue;
+    try {
+      const w = JSON.parse(readFileSync(path, "utf8")) as { mnemonic?: string; address?: string };
+      if (w.mnemonic) {
+        console.log(`Using local wallet ${path}${w.address ? ` (${w.address})` : ""}`);
+        return w.mnemonic;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return undefined;
+}
+
+const mnemonic = (process.env.AVM_MNEMONIC?.trim() || loadCanaryWalletMnemonic())?.trim();
 if (!mnemonic) {
   console.error(`
-Missing AVM_MNEMONIC.
+No canary wallet found.
 
-1. Open Pera Wallet (TestNet) → the **payer** account (address2), not payTo.
-2. Settings → Show Passphrase / Recovery phrase (write it down offline).
-3. Add ONE line to repo-root .env (gitignored):
+Create a local Testnet wallet (recommended — no Pera export):
 
-   AVM_MNEMONIC="your twenty five words here"
+  pnpm --filter @agentkeep/api wallet:create
 
-4. Re-run: pnpm --filter @agentkeep/api canary
+Then fund ALGO + opt-in USDC (see script output), and re-run canary.
 
-Do NOT paste the mnemonic into chat or commit it.
+Or set AVM_MNEMONIC in .env (gitignored) to a Testnet payer phrase.
 `);
   process.exit(1);
 }
@@ -92,7 +116,11 @@ async function main() {
   console.log(`Target: PUT ${url}`);
 
   const client = new x402Client();
-  client.register(ALGORAND_TESTNET_CAIP2, new ExactAvmScheme(avmSigner));
+  // Register both full-hash (GoPlausible) and truncated (@x402/avm) forms.
+  const scheme = new ExactAvmScheme(avmSigner);
+  client.register(ALGORAND_TESTNET_FULL, scheme);
+  client.register(ALGORAND_TESTNET_CAIP2, scheme);
+  console.log(`Registered networks: ${ALGORAND_TESTNET_FULL} + ${ALGORAND_TESTNET_CAIP2}`);
   const fetchWithPayment = wrapFetchWithPayment(fetch, client);
 
   const response = await fetchWithPayment(url, {

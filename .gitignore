@@ -44,3 +44,4 @@ id_rsa
 **/mnemonics*
 **/secrets/
 .neon
+.algorand/
