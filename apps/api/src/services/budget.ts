@@ -33,7 +33,7 @@ export async function chargeWallet(
     }
     w.spentTodayMinor += due;
     if (!w.ownerSince) w.ownerSince = new Date().toISOString();
-    await store.upsertWallet(w);
+    // Persistence is owned by withWalletLock implementations (in-memory mutates by ref; Neon writes on commit).
     return {
       chargedMinor: due,
       creditAppliedMinor: creditApplied,
@@ -47,6 +47,5 @@ export async function creditWallet(store: Store, walletId: string, amountMinor: 
   await store.withWalletLock(walletId, async (w: WalletRow) => {
     w.creditMinor += amountMinor;
     w.spentTodayMinor = Math.max(0, w.spentTodayMinor - amountMinor);
-    await store.upsertWallet(w);
   });
 }

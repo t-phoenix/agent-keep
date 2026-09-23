@@ -106,12 +106,14 @@ export function buildPaymentRequired(
     priceMinor: number;
     description: string;
     feePayer?: string;
+    extensions?: Record<string, unknown>;
   },
 ): {
   x402Version: 2;
   error: string;
   resource: { url: string; description: string; mimeType: string; serviceName: string; tags: string[] };
   accepts: PaymentRequirements[];
+  extensions?: Record<string, unknown>;
 } {
   const base = (config.publicApiBase || "http://localhost:8787").replace(/\/$/, "");
   const path = input.route.includes(" ") ? input.route.split(/\s+/)[1]! : input.route;
@@ -134,6 +136,7 @@ export function buildPaymentRequired(
       tags: [config.payment.challengeTag],
     },
     accepts,
+    ...(input.extensions ? { extensions: input.extensions } : {}),
   };
 }
 

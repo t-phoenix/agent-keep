@@ -16,6 +16,7 @@ import {
   buildPaymentRequired,
   encodePaymentRequired,
 } from "./payments/live-adapter.js";
+import { discoveryCatalog, discoveryForRoute } from "./payments/bazaar.js";
 import { createMemoryStore, type Store } from "./store/memory-store.js";
 
 export type AppEnv = {
@@ -74,6 +75,7 @@ export function createApp(opts: CreateAppOptions) {
             priceMinor: Number.isFinite(priceMinor) ? priceMinor : 0,
             description: challenge.description ?? "Paid AgentKeep route",
             feePayer: challenge.extra?.feePayer,
+            extensions: discoveryForRoute(challenge.resource ?? `GET ${c.req.path}`),
           });
           try {
             c.header("PAYMENT-REQUIRED", encodePaymentRequired(paymentRequired));
@@ -93,6 +95,10 @@ export function createApp(opts: CreateAppOptions) {
 
   app.get("/health", (c) => c.json({ status: "ok" }));
   app.get("/healthz", (c) => c.json({ status: "ok" }));
+
+  // Bazaar / agent discovery catalog (free)
+  app.get("/v1/discovery", (c) => c.json(discoveryCatalog(config.publicApiBase)));
+  app.get("/.well-known/x402", (c) => c.json(discoveryCatalog(config.publicApiBase)));
 
   // --- Memory ---
   app.put("/v1/memory/:key", async (c) => {

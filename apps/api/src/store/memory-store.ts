@@ -120,33 +120,41 @@ export function createMemoryStore(defaultDailyCapMinor: number): Store {
       w = { ...w, spendDay: day, spentTodayMinor: 0 };
       wallets.set(walletId, w);
     }
-    return { ...w };
+    return w;
   }
 
   return {
     async getWallet(walletId) {
-      return ensureWallet(walletId);
+      const w = await ensureWallet(walletId);
+      return { ...w };
     },
     async upsertWallet(row) {
-      wallets.set(row.walletId, row);
+      wallets.set(row.walletId, { ...row });
     },
-    async withWalletLock(walletId, fn) {
+    async withWalletLock<T>(walletId: string, fn: (w: WalletRow) => Promise<T>): Promise<T> {
       const prev = locks.get(walletId) ?? Promise.resolve();
       let release!: () => void;
       const gate = new Promise<void>((r) => {
         release = r;
       });
+      const run = prev.then(async () => {
+        try {
+          const w = await ensureWallet(walletId);
+          const result = await fn(w);
+          wallets.set(walletId, w);
+          return result;
+        } finally {
+          release();
+        }
+      });
       locks.set(
         walletId,
-        prev.then(() => gate),
+        run.then(
+          () => gate,
+          () => gate,
+        ),
       );
-      await prev;
-      try {
-        const w = await ensureWallet(walletId);
-        return await fn(w);
-      } finally {
-        release();
-      }
+      return run;
     },
     async putMemory(row) {
       memory.set(memKey(row.walletId, row.key), row);
