@@ -6,11 +6,15 @@ import { ROUTE_PRICES_MINOR, dollarsToMinor } from "./lib/money.js";
 import { assertSafeUrlResolved } from "./lib/ssrf.js";
 import { newRequestId, verifySessionToken } from "./lib/session.js";
 import {
-  createMockPaymentAdapter,
   receiptJson,
   requirePaid,
   type PaymentAdapter,
 } from "./payments/adapter.js";
+import { createPaymentAdapter } from "./payments/create-adapter.js";
+import {
+  buildPaymentRequired,
+  encodePaymentRequired,
+} from "./payments/live-adapter.js";
 import { createMemoryStore, type Store } from "./store/memory-store.js";
 
 export type AppEnv = {
@@ -38,7 +42,7 @@ function sessionOrThrow(c: { req: { header: (n: string) => string | undefined } 
 export function createApp(opts: CreateAppOptions) {
   const config = opts.config;
   const store = opts.store ?? createMemoryStore(config.defaultDailyCapMinor);
-  const payment = opts.payment ?? createMockPaymentAdapter(config);
+  const payment = opts.payment ?? createPaymentAdapter(config);
   const app = new Hono<AppEnv>();
 
   app.use("*", async (c, next) => {
@@ -53,6 +57,22 @@ export function createApp(opts: CreateAppOptions) {
     if (err instanceof AppError) {
       if (err.code === "payment_required") {
         c.header("Payment-Required", "true");
+        const challenge = err.details?.challenge as
+          | { resource?: string; description?: string; amount?: string; maxAmountRequired?: string }
+          | undefined;
+        if (challenge) {
+          const priceMinor = Number(challenge.amount ?? challenge.maxAmountRequired ?? 0);
+          const paymentRequired = buildPaymentRequired(config, {
+            route: challenge.resource ?? c.req.path,
+            priceMinor: Number.isFinite(priceMinor) ? priceMinor : 0,
+            description: challenge.description ?? "Paid AgentKeep route",
+          });
+          try {
+            c.header("PAYMENT-REQUIRED", encodePaymentRequired(paymentRequired));
+          } catch {
+            /* header encode best-effort */
+          }
+        }
       }
       return c.json(errorBody(err, requestId), err.status as 400);
     }

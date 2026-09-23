@@ -23,6 +23,7 @@ describe("integration: memory + session + tenancy", () => {
     const unpaidBody = await unpaid.json();
     expect(unpaidBody.error.code).toBe("payment_required");
     expect(unpaidBody.error.details.challenge.extra.tag).toBe("x402-global-challenge");
+    expect(unpaid.headers.get("payment-required") || unpaid.headers.get("PAYMENT-REQUIRED")).toBeTruthy();
 
     const paid = await app.request("http://localhost/v1/memory/foo", {
       method: "PUT",

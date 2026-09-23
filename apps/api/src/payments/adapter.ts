@@ -49,9 +49,11 @@ export function createMockPaymentAdapter(config: AppConfig): PaymentAdapter {
       return {
         scheme: "exact",
         network: config.payment.network,
+        amount: String(priceMinor),
         maxAmountRequired: String(priceMinor),
-        asset: "USDC",
+        asset: String(config.payment.usdcAsaId || "USDC"),
         payTo: config.payment.payTo,
+        maxTimeoutSeconds: 300,
         resource: route,
         description,
         extra: {
