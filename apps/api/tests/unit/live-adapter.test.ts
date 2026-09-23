@@ -70,10 +70,10 @@ describe("stripEnvComment", () => {
 });
 
 describe("live payment adapter", () => {
-  it("challenge includes challenge tag + wire amount", () => {
+  it("challenge includes challenge tag + wire amount", async () => {
     const config = testEnv();
     const adapter = createLivePaymentAdapter(config, { facilitator: mockFacilitator({}) });
-    const challenge = adapter.challenge({
+    const challenge = await adapter.challenge({
       route: "PUT /v1/memory/foo",
       priceMinor: 1000,
       description: "Store memory",
@@ -103,11 +103,11 @@ describe("live payment adapter", () => {
     const config = testEnv();
     const facilitator = mockFacilitator({});
     const adapter = createLivePaymentAdapter(config, { facilitator });
-    const requirements = adapter.challenge({
+    const requirements = (await adapter.challenge({
       route: "PUT /v1/memory/k",
       priceMinor: 1000,
       description: "mem",
-    }) as unknown as PaymentRequirements;
+    })) as unknown as PaymentRequirements;
     const payload = makePayload({
       scheme: "exact",
       network: wireCaip2(config),

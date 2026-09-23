@@ -30,11 +30,11 @@ export interface PaymentAdapter {
     route: string;
     priceMinor: number;
     description: string;
-  }): Record<string, unknown>;
+  }): Record<string, unknown> | Promise<Record<string, unknown>>;
 
   /**
    * Verify + settle. Mock accepts header X-AgentKeep-Mock-Pay: <address>.
-   * Live adapter will call GoPlausible / @x402.
+   * Live adapter calls GoPlausible / @x402 verify+settle.
    */
   settle(input: {
     route: string;
@@ -112,11 +112,13 @@ export async function requirePaid(
   const hasMock = input.headers.get("x-agentkeep-mock-pay");
   const hasLive = input.headers.get("payment-signature") || input.headers.get("x-payment");
   if (!hasMock && !hasLive) {
-    const challenge = adapter.challenge({
-      route: input.route,
-      priceMinor: input.priceMinor,
-      description: input.description,
-    });
+    const challenge = await Promise.resolve(
+      adapter.challenge({
+        route: input.route,
+        priceMinor: input.priceMinor,
+        description: input.description,
+      }),
+    );
     throw new AppError("payment_required", "Payment required", { challenge });
   }
 

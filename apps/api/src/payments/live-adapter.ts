@@ -46,7 +46,13 @@ export function wireUsdcAsa(config: AppConfig): string {
 
 export function buildPaymentRequirements(
   config: AppConfig,
-  input: { route: string; priceMinor: number; description: string; resourceUrl?: string },
+  input: {
+    route: string;
+    priceMinor: number;
+    description: string;
+    resourceUrl?: string;
+    feePayer?: string;
+  },
 ): PaymentRequirements {
   const network = wireCaip2(config);
   const asset = wireUsdcAsa(config);
@@ -64,13 +70,19 @@ export function buildPaymentRequirements(
       description: input.description,
       resource: input.route,
       ...(input.resourceUrl ? { resource_url: input.resourceUrl } : {}),
+      ...(input.feePayer ? { feePayer: input.feePayer } : {}),
     },
   };
 }
 
 export function buildPaymentRequired(
   config: AppConfig,
-  input: { route: string; priceMinor: number; description: string },
+  input: {
+    route: string;
+    priceMinor: number;
+    description: string;
+    feePayer?: string;
+  },
 ): {
   x402Version: 2;
   error: string;
@@ -80,7 +92,13 @@ export function buildPaymentRequired(
   const base = (config.publicApiBase || "http://localhost:8787").replace(/\/$/, "");
   const path = input.route.includes(" ") ? input.route.split(/\s+/)[1]! : input.route;
   const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
-  const accepts = [buildPaymentRequirements(config, { ...input, resourceUrl: url })];
+  const accepts = [
+    buildPaymentRequirements(config, {
+      ...input,
+      resourceUrl: url,
+      feePayer: input.feePayer,
+    }),
+  ];
   return {
     x402Version: 2,
     error: "Payment required",
@@ -122,13 +140,47 @@ export function createLivePaymentAdapter(config: AppConfig, deps: LiveAdapterDep
       timeoutMs: FACILITATOR_TIMEOUT_MS,
     });
 
+  let feePayer: string | undefined;
+  let feePayerLoad: Promise<void> | undefined;
+
+  const ensureFeePayer = async () => {
+    if (feePayer) return;
+    if (!feePayerLoad) {
+      feePayerLoad = (async () => {
+        try {
+          const supported = await facilitator.getSupported();
+          const want = wireCaip2(config);
+          const kind = supported.kinds?.find((k) => {
+            try {
+              return normalizeAlgorandNetwork(String(k.network)) === want && k.scheme === "exact";
+            } catch {
+              return String(k.network).includes("algorand") && k.scheme === "exact";
+            }
+          });
+          const fp = kind?.extra?.feePayer;
+          if (typeof fp === "string" && fp.length > 0) feePayer = fp;
+        } catch {
+          /* best-effort; client may still work if it fetches /supported itself */
+        }
+      })();
+    }
+    await feePayerLoad;
+  };
+
+  // Warm cache in background
+  void ensureFeePayer();
+
   return {
-    challenge({ route, priceMinor, description }) {
-      // Keep `extra.tag` at top-level of the accept row for AgentKeep clients + catalog tests.
-      const req = buildPaymentRequirements(config, { route, priceMinor, description });
+    async challenge({ route, priceMinor, description }) {
+      await ensureFeePayer();
+      const req = buildPaymentRequirements(config, {
+        route,
+        priceMinor,
+        description,
+        feePayer,
+      });
       return {
         ...req,
-        // Legacy AgentKeep fields (still useful in JSON body details.challenge)
         maxAmountRequired: String(priceMinor),
         resource: route,
         description,
@@ -152,6 +204,7 @@ export function createLivePaymentAdapter(config: AppConfig, deps: LiveAdapterDep
         throw new AppError("payment_invalid", "Invalid PAYMENT-SIGNATURE header");
       }
 
+      await ensureFeePayer();
       const requirements =
         "accepted" in payload && payload.accepted
           ? (payload.accepted as PaymentRequirements)
@@ -159,6 +212,7 @@ export function createLivePaymentAdapter(config: AppConfig, deps: LiveAdapterDep
               route,
               priceMinor,
               description: route,
+              feePayer,
             });
 
       // Hard checks before facilitator round-trip

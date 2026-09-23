@@ -58,7 +58,13 @@ export function createApp(opts: CreateAppOptions) {
       if (err.code === "payment_required") {
         c.header("Payment-Required", "true");
         const challenge = err.details?.challenge as
-          | { resource?: string; description?: string; amount?: string; maxAmountRequired?: string }
+          | {
+              resource?: string;
+              description?: string;
+              amount?: string;
+              maxAmountRequired?: string;
+              extra?: { feePayer?: string };
+            }
           | undefined;
         if (challenge) {
           const priceMinor = Number(challenge.amount ?? challenge.maxAmountRequired ?? 0);
@@ -66,6 +72,7 @@ export function createApp(opts: CreateAppOptions) {
             route: challenge.resource ?? c.req.path,
             priceMinor: Number.isFinite(priceMinor) ? priceMinor : 0,
             description: challenge.description ?? "Paid AgentKeep route",
+            feePayer: challenge.extra?.feePayer,
           });
           try {
             c.header("PAYMENT-REQUIRED", encodePaymentRequired(paymentRequired));
