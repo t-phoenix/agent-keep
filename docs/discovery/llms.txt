@@ -1,8 +1,8 @@
 # AgentKeep
 
-> Wallet-scoped OS primitives for AI agents. No signup. Pay per call (x402, USDC on Base). Get JSON. Keep going.
+> Wallet-scoped OS primitives for AI agents. No signup. Pay per call with **x402** (USDC on **Algorand Mainnet** via **GoPlausible**). Get JSON. Keep going.
 
-Separate product — not AgentCash / Stable*.
+Separate product — not AgentCash / Stable*. Challenge tag: `x402-global-challenge`.
 
 ## When to use
 
@@ -11,22 +11,21 @@ Separate product — not AgentCash / Stable*.
 - `/v1/notify` — human approve/deny via email or Telegram
 - `/v1/inbox` — inbound email poll
 - `/v1/budget` — caps + credits + receipts
-- `/v1/fetch` — URL → markdown ($0.01 flat)
+- `/v1/fetch` — URL → body excerpt ($0.01 flat)
 - `/v1/trust` — probe other origins for x402
 - `/v1/owner/*` — bind channels, caps, delete
 
-## Base URLs (planned)
+## Live base URL
 
-- API: https://api.agentkeep.app
-- Artifacts: https://artifacts.agentkeep.app
-- OpenAPI: https://api.agentkeep.app/openapi.json
-- Skill: https://agentkeep.app/skill.md
+- API: set `PUBLIC_API_BASE` (Cloud Run HTTPS)
+- Discovery: `/.well-known/x402`, `/llms.txt`, `/agents.md`, `/v1/discovery`
+- Facilitator: https://facilitator.goplausible.xyz
 
-## Auth
+## Auth / payment
 
-1. Paid routes: x402 proof (USDC on Base, CDP)
+1. Paid routes: x402 proof — **Algorand Mainnet** USDC ASA `31566704` (not Testnet, not Base/CDP)
 2. Free tenant GETs: `X-AgentKeep-Session` (15m after paid settle) or proof
-3. First settled pay = owner
+3. First settled pay = owner wallet for that tenant
 
 ## Prices (USDC) — locked intent
 
@@ -47,5 +46,3 @@ Separate product — not AgentCash / Stable*.
 | GET /v1/trust | $0.002 |
 
 Default hard daily cap: $2. Branch on `error.code`.
-
-Status: pre-launch; see docs/21-prebuild-decisions.md

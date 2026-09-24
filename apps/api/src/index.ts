@@ -7,6 +7,18 @@ import { migrateStore } from "./store/migrate.js";
 
 async function main() {
   const config = loadConfig();
+
+  // Challenge / GoPlausible Bazaar: live Cloud Run must be Mainnet-only.
+  if (
+    config.payment.adapter === "live" &&
+    config.nodeEnv === "production" &&
+    config.payment.mode !== "mainnet"
+  ) {
+    throw new Error(
+      "Live production payments require PAYMENT_MODE=mainnet (Testnet disabled for Bazaar/challenge)",
+    );
+  }
+
   let store = createMemoryStore(config.defaultDailyCapMinor);
   let storeKind: "memory" | "neon" = "memory";
 

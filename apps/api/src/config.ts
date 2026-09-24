@@ -79,6 +79,16 @@ export function loadConfig() {
     ownerWebBase: optional("OWNER_WEB_BASE", "http://localhost:8787"),
     artifactsBase: optional("ARTIFACTS_BASE", ""),
     databaseUrl: optional("DATABASE_URL", ""),
+    r2: {
+      accountId: optional("R2_ACCOUNT_ID", ""),
+      accessKeyId: optional("R2_ACCESS_KEY_ID", ""),
+      secretAccessKey: optional("R2_SECRET_ACCESS_KEY", ""),
+      bucket: optional("R2_BUCKET", ""),
+    },
+    email: {
+      apiKey: optional("EMAIL_API_KEY", ""),
+      from: optional("EMAIL_FROM", ""),
+    },
   };
 }
 

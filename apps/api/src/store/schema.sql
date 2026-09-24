@@ -80,3 +80,6 @@ CREATE TABLE IF NOT EXISTS payment_nonces (
   nonce TEXT PRIMARY KEY,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Additive migrations (safe to re-run)
+ALTER TABLE wallets ADD COLUMN IF NOT EXISTS owner_email TEXT;

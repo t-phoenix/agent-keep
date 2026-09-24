@@ -23,6 +23,7 @@ function mapWallet(r: Record<string, unknown>): WalletRow {
     ownerSince: r.owner_since ? new Date(String(r.owner_since)).toISOString() : undefined,
     emailBound: Boolean(r.email_bound),
     telegramBound: Boolean(r.telegram_bound),
+    ownerEmail: r.owner_email ? String(r.owner_email) : null,
   };
 }
 
@@ -92,8 +93,8 @@ export function createNeonStore(pool: Pool, defaultDailyCapMinor: number): Store
       await pool.query(
         `INSERT INTO wallets (
            wallet_id, daily_cap_minor, spent_today_minor, credit_minor, spend_day,
-           owner_since, email_bound, telegram_bound, updated_at
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW())
+           owner_since, email_bound, telegram_bound, owner_email, updated_at
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
          ON CONFLICT (wallet_id) DO UPDATE SET
            daily_cap_minor = EXCLUDED.daily_cap_minor,
            spent_today_minor = EXCLUDED.spent_today_minor,
@@ -102,6 +103,7 @@ export function createNeonStore(pool: Pool, defaultDailyCapMinor: number): Store
            owner_since = EXCLUDED.owner_since,
            email_bound = EXCLUDED.email_bound,
            telegram_bound = EXCLUDED.telegram_bound,
+           owner_email = EXCLUDED.owner_email,
            updated_at = NOW()`,
         [
           row.walletId,
@@ -112,6 +114,7 @@ export function createNeonStore(pool: Pool, defaultDailyCapMinor: number): Store
           row.ownerSince ?? null,
           row.emailBound ?? false,
           row.telegramBound ?? false,
+          row.ownerEmail ?? null,
         ],
       );
     },
@@ -131,6 +134,7 @@ export function createNeonStore(pool: Pool, defaultDailyCapMinor: number): Store
              owner_since = $6,
              email_bound = $7,
              telegram_bound = $8,
+             owner_email = $9,
              updated_at = NOW()
            WHERE wallet_id = $1`,
           [
@@ -142,6 +146,7 @@ export function createNeonStore(pool: Pool, defaultDailyCapMinor: number): Store
             w.ownerSince ?? null,
             w.emailBound ?? false,
             w.telegramBound ?? false,
+            w.ownerEmail ?? null,
           ],
         );
         await client.query("COMMIT");
@@ -335,6 +340,21 @@ export function createNeonStore(pool: Pool, defaultDailyCapMinor: number): Store
         id,
         walletId,
       ]);
+      if (!r.rowCount) return null;
+      const row = r.rows[0]!;
+      return {
+        id: String(row.id),
+        walletId: String(row.wallet_id),
+        url: String(row.url),
+        sha256: String(row.sha256),
+        contentType: String(row.content_type),
+        bytes: Number(row.bytes),
+        createdAt: new Date(String(row.created_at)).toISOString(),
+      };
+    },
+
+    async getArtifactById(id) {
+      const r = await pool.query(`SELECT * FROM artifacts WHERE id = $1`, [id]);
       if (!r.rowCount) return null;
       const row = r.rows[0]!;
       return {

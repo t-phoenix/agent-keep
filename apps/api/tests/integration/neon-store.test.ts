@@ -55,5 +55,5 @@ describe.runIf(Boolean(databaseUrl))("neon store integration", () => {
     expect(await store.seenNonce(nonce)).toBe(true);
 
     await pool.end();
-  }, 30_000);
+  }, 60_000);
 });

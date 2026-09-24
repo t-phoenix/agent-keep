@@ -17,6 +17,8 @@ import {
   ExactAvmScheme,
   ALGORAND_TESTNET_CAIP2,
   ALGORAND_TESTNET_GENESIS_HASH,
+  ALGORAND_MAINNET_CAIP2,
+  ALGORAND_MAINNET_GENESIS_HASH,
 } from "@x402/avm";
 import {
   ed25519SigningKeyFromWrappedSecret,
@@ -26,6 +28,7 @@ import { seedFromMnemonic } from "@algorandfoundation/algokit-utils/algo25";
 
 /** GoPlausible `/supported` uses full genesis-hash CAIP-2 (not the truncated constant). */
 const ALGORAND_TESTNET_FULL = `algorand:${ALGORAND_TESTNET_GENESIS_HASH}`;
+const ALGORAND_MAINNET_FULL = `algorand:${ALGORAND_MAINNET_GENESIS_HASH}`;
 
 function loadDotEnv() {
   const candidates = [
@@ -93,7 +96,91 @@ const base =
   process.env.PUBLIC_API_BASE?.replace(/\/$/, "") ||
   "https://agent-keep-684642514120.europe-west1.run.app";
 
-const url = `${base}/v1/memory/canary`;
+const memoryKey = (process.env.CANARY_MEMORY_KEY || "canary").replace(/^\/+/, "");
+/** Comma list: memory,fetch,receipts,trust,artifacts (default: memory) */
+const routes = (process.env.CANARY_ROUTES || "memory")
+  .split(",")
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
+
+type PaidCall = {
+  name: string;
+  method: string;
+  url: string;
+  headers?: Record<string, string>;
+  body?: string | Buffer;
+};
+
+function buildCalls(): PaidCall[] {
+  const out: PaidCall[] = [];
+  for (const r of routes) {
+    if (r === "memory") {
+      out.push({
+        name: `PUT /v1/memory/${memoryKey}`,
+        method: "PUT",
+        url: `${base}/v1/memory/${memoryKey}`,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ value: { canary: true, at: new Date().toISOString() } }),
+      });
+    } else if (r === "fetch") {
+      out.push({
+        name: "POST /v1/fetch",
+        method: "POST",
+        url: `${base}/v1/fetch`,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: "https://example.com", max_bytes: 2048 }),
+      });
+    } else if (r === "receipts") {
+      out.push({
+        name: "GET /v1/budget/receipts",
+        method: "GET",
+        url: `${base}/v1/budget/receipts`,
+      });
+    } else if (r === "trust") {
+      out.push({
+        name: "GET /v1/trust",
+        method: "GET",
+        url: `${base}/v1/trust?url=${encodeURIComponent("https://example.com")}`,
+      });
+    } else if (r === "artifacts") {
+      out.push({
+        name: "POST /v1/artifacts",
+        method: "POST",
+        url: `${base}/v1/artifacts`,
+        headers: { "content-type": "text/plain" },
+        body: `canary-artifact ${new Date().toISOString()}`,
+      });
+    } else if (r === "bind-email" || r === "bind") {
+      const email = (process.env.CANARY_OWNER_EMAIL || "").trim();
+      if (!email) {
+        console.error("bind-email requires CANARY_OWNER_EMAIL=you@example.com");
+        process.exit(1);
+      }
+      out.push({
+        name: "POST /v1/owner/bind/email",
+        method: "POST",
+        url: `${base}/v1/owner/bind/email`,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+    } else if (r === "notify") {
+      out.push({
+        name: "POST /v1/notify",
+        method: "POST",
+        url: `${base}/v1/notify`,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          question:
+            process.env.CANARY_NOTIFY_QUESTION ||
+            `AgentKeep canary notify at ${new Date().toISOString()} — Approve?`,
+        }),
+      });
+    } else {
+      console.warn(`Unknown CANARY_ROUTES entry skipped: ${r}`);
+    }
+  }
+  return out;
+}
 
 async function getSecretKeyFromMnemonic(avmMnemonic: string): Promise<string> {
   const seed = seedFromMnemonic(avmMnemonic);
@@ -113,32 +200,54 @@ async function main() {
   const secretKey = await getSecretKeyFromMnemonic(mnemonic!);
   const avmSigner = toClientAvmSigner(secretKey);
   console.log(`Payer address: ${avmSigner.address}`);
-  console.log(`Target: PUT ${url}`);
 
   const client = new x402Client();
-  // Register both full-hash (GoPlausible) and truncated (@x402/avm) forms.
   const scheme = new ExactAvmScheme(avmSigner);
-  client.register(ALGORAND_TESTNET_FULL, scheme);
-  client.register(ALGORAND_TESTNET_CAIP2, scheme);
-  console.log(`Registered networks: ${ALGORAND_TESTNET_FULL} + ${ALGORAND_TESTNET_CAIP2}`);
+  const networkHint = (
+    process.env.CANARY_NETWORK ||
+    process.env.PAYMENT_MODE ||
+    "testnet"
+  ).toLowerCase();
+  const isMainnet = networkHint === "mainnet";
+  if (isMainnet) {
+    client.register(ALGORAND_MAINNET_FULL, scheme);
+    client.register(ALGORAND_MAINNET_CAIP2, scheme);
+    console.log(`Registered networks: ${ALGORAND_MAINNET_FULL} + ${ALGORAND_MAINNET_CAIP2}`);
+  } else {
+    client.register(ALGORAND_TESTNET_FULL, scheme);
+    client.register(ALGORAND_TESTNET_CAIP2, scheme);
+    console.log(`Registered networks: ${ALGORAND_TESTNET_FULL} + ${ALGORAND_TESTNET_CAIP2}`);
+  }
   const fetchWithPayment = wrapFetchWithPayment(fetch, client);
-
-  const response = await fetchWithPayment(url, {
-    method: "PUT",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ value: { canary: true, at: new Date().toISOString() } }),
-  });
-
-  const session = response.headers.get("x-agentkeep-session");
-  const text = await response.text();
-  let body: unknown = text;
-  try {
-    body = JSON.parse(text);
-  } catch {
-    /* keep text */
+  const calls = buildCalls();
+  if (calls.length === 0) {
+    console.error("No canary routes selected. Set CANARY_ROUTES=memory,fetch,...");
+    process.exit(1);
   }
 
-  if (response.ok) {
+  for (const call of calls) {
+    console.log(`\n→ ${call.method} ${call.url}`);
+    const response = await fetchWithPayment(call.url, {
+      method: call.method,
+      headers: call.headers,
+      body: call.body,
+    });
+
+    const session = response.headers.get("x-agentkeep-session");
+    const text = await response.text();
+    let body: unknown = text;
+    try {
+      body = JSON.parse(text);
+    } catch {
+      /* keep text */
+    }
+
+    if (!response.ok) {
+      console.error(`\nFailed ${call.name}: HTTP ${response.status}`);
+      console.error(typeof body === "string" ? body : JSON.stringify(body, null, 2));
+      process.exit(1);
+    }
+
     let paymentResponse: unknown;
     try {
       paymentResponse = new x402HTTPClient(client).getPaymentSettleResponse((name) =>
@@ -150,16 +259,13 @@ async function main() {
         error: e instanceof Error ? e.message : String(e),
       };
     }
-    console.log("\nPayment settled:", JSON.stringify(paymentResponse, null, 2));
+    console.log("Payment settled:", JSON.stringify(paymentResponse, null, 2));
     console.log("Session:", session);
     console.log("Body:", JSON.stringify(body, null, 2));
-    console.log("\nH1 canary OK — reply: H1 human done");
-    return;
+    console.log(`OK ${call.name}`);
   }
 
-  console.error(`\nFailed: HTTP ${response.status}`);
-  console.error(typeof body === "string" ? body : JSON.stringify(body, null, 2));
-  process.exit(1);
+  console.log(`\nCanary OK (${isMainnet ? "Mainnet" : "Testnet"}) — ${calls.length} route(s)`);
 }
 
 main().catch((err: Error) => {

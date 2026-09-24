@@ -1,10 +1,22 @@
 import { Hono } from "hono";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { AppConfig } from "./config.js";
 import { AppError, errorBody } from "./errors.js";
 import { ROUTE_PRICES_MINOR, dollarsToMinor } from "./lib/money.js";
 import { assertSafeUrlResolved } from "./lib/ssrf.js";
 import { newRequestId, verifySessionToken } from "./lib/session.js";
+import {
+  createR2Client,
+  isR2Configured,
+  r2Get,
+  r2Put,
+  type R2Config,
+} from "./lib/r2.js";
+import {
+  isEmailConfigured,
+  notifyTicketEmailHtml,
+  sendEmail,
+} from "./lib/email.js";
 import {
   receiptJson,
   requirePaid,
@@ -16,8 +28,21 @@ import {
   buildPaymentRequired,
   encodePaymentRequired,
 } from "./payments/live-adapter.js";
-import { discoveryCatalog, discoveryForRoute } from "./payments/bazaar.js";
+import {
+  discoveryCatalog,
+  discoveryForRoute,
+  descriptionForRoute,
+  wellKnownX402,
+} from "./payments/bazaar.js";
+import {
+  agentCardJson,
+  agentManifestJson,
+  agentsMd,
+  llmsTxt,
+  rootHtml,
+} from "./discovery/agent-docs.js";
 import { createMemoryStore, type Store } from "./store/memory-store.js";
+import type { S3Client } from "@aws-sdk/client-s3";
 
 export type AppEnv = {
   Variables: {
@@ -47,6 +72,32 @@ export function createApp(opts: CreateAppOptions) {
   const payment = opts.payment ?? createPaymentAdapter(config);
   const app = new Hono<AppEnv>();
 
+  const r2Cfg: R2Config | null = isR2Configured(config.r2) ? config.r2 : null;
+  const r2Client: S3Client | null = r2Cfg ? createR2Client(r2Cfg) : null;
+  const artifactBytes = new Map<string, Buffer>();
+
+  function notifyActionToken(ticketId: string, walletId: string, status: string): string {
+    return createHmac("sha256", config.sessionHmacSecret)
+      .update(`${ticketId}:${walletId}:${status}`)
+      .digest("hex");
+  }
+
+  function verifyNotifyActionToken(
+    ticketId: string,
+    walletId: string,
+    status: string,
+    token: string,
+  ): boolean {
+    const expected = notifyActionToken(ticketId, walletId, status);
+    try {
+      const a = Buffer.from(expected, "hex");
+      const b = Buffer.from(token, "hex");
+      return a.length === b.length && timingSafeEqual(a, b);
+    } catch {
+      return false;
+    }
+  }
+
   app.use("*", async (c, next) => {
     const requestId = c.req.header("x-request-id") ?? newRequestId();
     c.set("requestId", requestId);
@@ -73,9 +124,14 @@ export function createApp(opts: CreateAppOptions) {
           const paymentRequired = buildPaymentRequired(config, {
             route: challenge.resource ?? c.req.path,
             priceMinor: Number.isFinite(priceMinor) ? priceMinor : 0,
-            description: challenge.description ?? "Paid AgentKeep route",
+            description:
+              challenge.description ??
+              descriptionForRoute(challenge.resource ?? `GET ${c.req.path}`),
             feePayer: challenge.extra?.feePayer,
-            extensions: discoveryForRoute(challenge.resource ?? `GET ${c.req.path}`),
+            extensions: discoveryForRoute(
+              challenge.resource ?? `GET ${c.req.path}`,
+              config,
+            ),
           });
           try {
             c.header("PAYMENT-REQUIRED", encodePaymentRequired(paymentRequired));
@@ -96,9 +152,16 @@ export function createApp(opts: CreateAppOptions) {
   app.get("/health", (c) => c.json({ status: "ok" }));
   app.get("/healthz", (c) => c.json({ status: "ok" }));
 
-  // Bazaar / agent discovery catalog (free)
-  app.get("/v1/discovery", (c) => c.json(discoveryCatalog(config.publicApiBase)));
-  app.get("/.well-known/x402", (c) => c.json(discoveryCatalog(config.publicApiBase)));
+  // Merchant enrichment + agent discovery (Mainnet / GoPlausible Bazaar)
+  app.get("/", (c) => c.html(rootHtml(config)));
+  app.get("/llms.txt", (c) => c.text(llmsTxt(config), 200, { "content-type": "text/plain; charset=utf-8" }));
+  app.get("/agents.md", (c) =>
+    c.text(agentsMd(config), 200, { "content-type": "text/markdown; charset=utf-8" }),
+  );
+  app.get("/.well-known/x402", (c) => c.json(wellKnownX402(config)));
+  app.get("/.well-known/agent-card.json", (c) => c.json(agentCardJson(config)));
+  app.get("/.well-known/agent.json", (c) => c.json(agentManifestJson(config)));
+  app.get("/v1/discovery", (c) => c.json(discoveryCatalog(config)));
 
   // --- Memory ---
   app.put("/v1/memory/:key", async (c) => {
@@ -107,7 +170,7 @@ export function createApp(opts: CreateAppOptions) {
     const settle = await requirePaid(store, config, payment, {
       route: `PUT /v1/memory/${key}`,
       priceMinor: ROUTE_PRICES_MINOR["PUT /v1/memory/:key"],
-      description: "Store a wallet-scoped key/value (≤64KiB); returns metadata and payment receipt.",
+      description: descriptionForRoute(`PUT /v1/memory/${key}`),
       headers: c.req.raw.headers,
       requestId: c.get("requestId"),
       idempotencyKey: c.req.header("idempotency-key"),
@@ -321,12 +384,12 @@ export function createApp(opts: CreateAppOptions) {
     });
   });
 
-  // --- Artifacts (in-memory / public URL stub) ---
+  // --- Artifacts (R2 when configured; else in-process map for tests/dev) ---
   app.post("/v1/artifacts", async (c) => {
     const settle = await requirePaid(store, config, payment, {
       route: "POST /v1/artifacts",
       priceMinor: ROUTE_PRICES_MINOR["POST /v1/artifacts"],
-      description: "Upload bytes; returns a public HTTPS URL and content hash.",
+      description: descriptionForRoute("POST /v1/artifacts"),
       headers: c.req.raw.headers,
       requestId: c.get("requestId"),
     });
@@ -345,8 +408,13 @@ export function createApp(opts: CreateAppOptions) {
     }
     const id = randomBytes(10).toString("hex");
     const sha256 = createHash("sha256").update(buf).digest("hex");
-    const base = config.artifactsBase || `${config.publicApiBase}/a`;
+    const base = (config.artifactsBase || `${config.publicApiBase}/a`).replace(/\/$/, "");
     const url = `${base}/${id}`;
+    if (r2Client && r2Cfg) {
+      await r2Put(r2Client, r2Cfg.bucket, id, buf, ct);
+    } else {
+      artifactBytes.set(id, buf);
+    }
     await store.putArtifact({
       id,
       walletId: settle.walletId,
@@ -356,8 +424,6 @@ export function createApp(opts: CreateAppOptions) {
       bytes: buf.byteLength,
       createdAt: new Date().toISOString(),
     });
-    // stash bytes in memory map via putArtifact only meta — for MVP serve via /a/:id
-    artifactBytes.set(id, buf);
     applySettleHeaders(c, settle);
     return c.json({
       id,
@@ -368,13 +434,21 @@ export function createApp(opts: CreateAppOptions) {
     });
   });
 
-  const artifactBytes = new Map<string, Buffer>();
   app.get("/a/:id", async (c) => {
     const id = c.req.param("id");
-    const buf = artifactBytes.get(id);
+    const meta = await store.getArtifactById(id);
+    let buf = artifactBytes.get(id);
+    let contentType = meta?.contentType ?? "application/octet-stream";
+    if (!buf && r2Client && r2Cfg) {
+      const blob = await r2Get(r2Client, r2Cfg.bucket, id);
+      if (blob) {
+        buf = blob.body;
+        contentType = blob.contentType;
+      }
+    }
     if (!buf) throw new AppError("not_found", "Artifact not found");
     return new Response(new Uint8Array(buf), {
-      headers: { "content-type": "application/octet-stream" },
+      headers: { "content-type": contentType },
     });
   });
 
@@ -383,7 +457,7 @@ export function createApp(opts: CreateAppOptions) {
     const settle = await requirePaid(store, config, payment, {
       route: "POST /v1/notify",
       priceMinor: ROUTE_PRICES_MINOR["POST /v1/notify"],
-      description: "Create a human approve/deny/answer ticket (owner-bound channels only).",
+      description: descriptionForRoute("POST /v1/notify"),
       headers: c.req.raw.headers,
       requestId: c.get("requestId"),
     });
@@ -411,11 +485,35 @@ export function createApp(opts: CreateAppOptions) {
       expiresAt: new Date(Date.now() + maxWait * 1000).toISOString(),
     };
     await store.putNotify(ticket);
+
+    const owner = await store.getWallet(settle.walletId);
+    let email_sent = false;
+    if (isEmailConfigured(config.email) && owner?.ownerEmail) {
+      const base = config.ownerWebBase.replace(/\/$/, "");
+      const approveTok = notifyActionToken(id, settle.walletId, "approved");
+      const denyTok = notifyActionToken(id, settle.walletId, "denied");
+      const approveUrl = `${base}/owner/notify/${id}/action?wallet_id=${encodeURIComponent(settle.walletId)}&status=approved&token=${approveTok}`;
+      const denyUrl = `${base}/owner/notify/${id}/action?wallet_id=${encodeURIComponent(settle.walletId)}&status=denied&token=${denyTok}`;
+      const sent = await sendEmail(config.email, {
+        to: owner.ownerEmail,
+        subject: `AgentKeep notify: ${body.question.slice(0, 80)}`,
+        html: notifyTicketEmailHtml({
+          question: body.question,
+          ticketId: id,
+          approveUrl,
+          denyUrl,
+        }),
+        text: `${body.question}\n\nApprove: ${approveUrl}\nDeny: ${denyUrl}`,
+      });
+      email_sent = sent.ok;
+    }
+
     applySettleHeaders(c, settle);
     return c.json({
       id,
       status: "pending",
       poll: `/v1/notify/${id}`,
+      email_sent,
       receipt: receiptJson(config, settle, "POST /v1/notify"),
     });
   });
@@ -434,7 +532,37 @@ export function createApp(opts: CreateAppOptions) {
     return c.json({ ...t, receipt: receiptJson(config, settle, `GET /v1/notify/${t.id}`) });
   });
 
-  // Owner resolve page stub (approve)
+  // Signed email action links (GET)
+  app.get("/owner/notify/:id/action", async (c) => {
+    const id = c.req.param("id");
+    const walletId = c.req.query("wallet_id");
+    const status = c.req.query("status");
+    const token = c.req.query("token");
+    if (!walletId || !status || !token) {
+      throw new AppError("validation_error", "wallet_id, status, and token required");
+    }
+    if (!["approved", "denied", "answered", "cancelled"].includes(status)) {
+      throw new AppError("validation_error", "Invalid status");
+    }
+    if (!verifyNotifyActionToken(id, walletId, status, token)) {
+      throw new AppError("forbidden", "Invalid or expired action token");
+    }
+    const t = await store.getNotify(walletId, id);
+    if (!t) throw new AppError("not_found", "Ticket not found");
+    if (t.status === "pending") {
+      t.status = status as typeof t.status;
+      await store.putNotify(t);
+    }
+    return c.html(
+      `<!doctype html><html><body style="font-family:system-ui,sans-serif">
+        <h1>Ticket ${id}</h1>
+        <p>Status: <strong>${t.status}</strong></p>
+        <p>You can close this tab. Agents poll <code>/v1/notify/${id}</code>.</p>
+      </body></html>`,
+    );
+  });
+
+  // Owner resolve page stub (approve) — kept for agents/tests
   app.post("/owner/notify/:id/resolve", async (c) => {
     const body = await c.req.json<{ wallet_id?: string; status?: string; answer?: string }>();
     if (!body.wallet_id || !body.status) throw new AppError("validation_error", "wallet_id and status required");
@@ -506,13 +634,19 @@ export function createApp(opts: CreateAppOptions) {
       headers: c.req.raw.headers,
       requestId: c.get("requestId"),
     });
+    const body = await c.req.json<{ email?: string }>().catch(() => ({} as { email?: string }));
+    if (!body.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) {
+      throw new AppError("validation_error", "email required");
+    }
     await store.withWalletLock(settle.walletId, async (w) => {
       w.emailBound = true;
-      await store.upsertWallet(w);
+      w.ownerEmail = body.email!.toLowerCase();
+      // Neon withWalletLock persists `w`; do not nest upsertWallet (deadlocks FOR UPDATE).
     });
     applySettleHeaders(c, settle);
     return c.json({
       status: "bound",
+      email: body.email.toLowerCase(),
       confirm_url: `${config.ownerWebBase}/owner/confirm-email?token=dev`,
       receipt: receiptJson(config, settle, "POST /v1/owner/bind/email"),
     });
@@ -536,7 +670,6 @@ export function createApp(opts: CreateAppOptions) {
     }
     await store.withWalletLock(settle.walletId, async (w) => {
       w.dailyCapMinor = body.daily_cap_minor!;
-      await store.upsertWallet(w);
     });
     applySettleHeaders(c, settle);
     return c.json({

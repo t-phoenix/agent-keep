@@ -21,6 +21,8 @@ export type WalletRow = {
   ownerSince?: string;
   emailBound?: boolean;
   telegramBound?: boolean;
+  /** Owner notify destination — set by POST /v1/owner/bind/email */
+  ownerEmail?: string | null;
 };
 
 export type MemoryRow = {
@@ -83,6 +85,8 @@ export interface Store {
 
   putArtifact(a: ArtifactMeta): Promise<void>;
   getArtifact(walletId: string, id: string): Promise<ArtifactMeta | null>;
+  /** Public artifact lookup by id (no wallet) for GET /a/:id */
+  getArtifactById(id: string): Promise<ArtifactMeta | null>;
 
   seenNonce(nonce: string): Promise<boolean>;
   markNonce(nonce: string): Promise<void>;
@@ -212,9 +216,13 @@ export function createMemoryStore(defaultDailyCapMinor: number): Store {
     },
     async putArtifact(a) {
       artifacts.set(`${a.walletId}::${a.id}`, a);
+      artifacts.set(`id::${a.id}`, a);
     },
     async getArtifact(walletId, id) {
       return artifacts.get(`${walletId}::${id}`) ?? null;
+    },
+    async getArtifactById(id) {
+      return artifacts.get(`id::${id}`) ?? null;
     },
     async seenNonce(nonce) {
       return nonces.has(nonce);
