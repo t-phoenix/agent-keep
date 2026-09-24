@@ -50,13 +50,13 @@
 | Asset | Value |
 |-------|-------|
 | Product name | AgentKeep |
-| Primary domain | **`agentkeep.app`** (intent; buy at **P12** after staging tests) |
-| Backup domain | **`agentkeep.net`** (buy at P12 with primary) |
-| Origin host | `https://api.agentkeep.app` |
-| Docs | `https://agentkeep.app` |
-| OpenAPI | `https://api.agentkeep.app/openapi.json` |
-| llms.txt | `https://agentkeep.app/llms.txt` |
-| skill | `https://agentkeep.app/skill.md` |
+| Primary domain | **`agentkeep.online`** (marketing; bought Namecheap) · intent was `.app` — see `46` |
+| Origin host (challenge) | Cloud Run `*.run.app` until cutover |
+| Origin host (later) | `https://api.agentkeep.online` |
+| Docs / site | `https://agentkeep.online` |
+| OpenAPI | `https://api…/openapi.json` (when cut over) |
+| llms.txt | API host `/llms.txt` |
+| skill | `https://agentkeep.online/skill` + repo `docs/discovery/SKILL.md` |
 | Scanner listing name | `AgentKeep` |
 
 **Taken (do not plan on):** `agentkeep.dev`, `.com`, `.io`, `.ai`, `keep.tools`, `agentkeep.xyz`.

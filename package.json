@@ -12,7 +12,10 @@
     "wallet:create": "pnpm --filter @agentkeep/api wallet:create",
     "wallet:optin": "pnpm --filter @agentkeep/api wallet:optin",
     "canary": "pnpm --filter @agentkeep/api canary",
-    "migrate": "pnpm --filter @agentkeep/api migrate"
+    "migrate": "pnpm --filter @agentkeep/api migrate",
+    "dev:web": "pnpm --filter @agentkeep/web dev",
+    "build:web": "pnpm --filter @agentkeep/web build",
+    "dev:api": "pnpm --filter @agentkeep/api dev"
   },
   "dependencies": {
     "@neon/config": "^1.7.2",

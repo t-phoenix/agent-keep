@@ -95,6 +95,9 @@ Read top-to-bottom for onboarding; jump by need when building.
 | 32 | [Submission packet](32-challenge-submission-packet.md) | Form + Electric Capital answers | Stub |
 | 33 | [Env & secrets matrix](33-env-and-secrets-matrix.md) | Every env var + where it lives | Stub |
 | 40 | [Human setup checklist](40-human-setup-checklist.md) | Wallets, GitHub, infra try-order | **Active** |
+| 45 | [Hackathon completion checklist](45-hackathon-completion-checklist.md) | Form, Electric Capital, domain timing, brand/site | **Active** |
+| 46 | [Domain agentkeep.online](46-domain-agentkeep-online.md) | Namecheap → Cloudflare Pages + API cutover | **Active** |
+| brand | [Brand guidelines](brand/guidelines.md) | Logo, color, voice, motion | **Active** |
 | 40b | [Oracle create-instance form](40b-oracle-create-instance-form.md) | Field picks (if Oracle works) | Reference |
 | 40c | [Easy free host — Cloud Run](40c-easy-free-host-cloudrun.md) | Preferred host when Oracle/Koyeb blocked | **Active** |
 | 41 | [Dev & deploy](41-dev-and-deploy.md) | Local run, tests, Cloud Run | **Active** |
