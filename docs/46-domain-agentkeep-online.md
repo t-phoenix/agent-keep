@@ -44,16 +44,16 @@ Namecheap ──NS──► Cloudflare zone (agentkeep.online)
 
 1. Push `apps/web` to public GitHub (already on `main`).  
 2. Cloudflare → **Workers & Pages** → **Create** → **Pages** → Connect repo `agent-keep` (or your fork).  
-3. Cloudflare’s Git connector is **Workers Builds** (it runs a deploy command after the build). Do not leave deploy as bare `npx wrangler deploy` — that fails at the pnpm workspace root. Build settings:
+3. Cloudflare’s Git connector is **Workers Builds**. It runs `npx wrangler deploy` from the repo root after the build. That command only reads a Wrangler file in the root, so the config lives at `wrangler.jsonc` (assets: `apps/web/out`). Leave the deploy command as the default.
 
    | Field | Value |
    |-------|--------|
    | Root directory / Path | `/` (repo root) |
    | Build command | `pnpm install && pnpm --filter @agentkeep/web build` |
-   | Deploy command | `npx wrangler deploy -c apps/web/wrangler.jsonc` |
-   | Non-production branch deploy command | `npx wrangler versions upload -c apps/web/wrangler.jsonc` |
+   | Deploy command | `npx wrangler deploy` |
+   | Non-production branch deploy command | `npx wrangler versions upload` |
 
-   There is no separate “build output directory” field. `apps/web/wrangler.jsonc` points assets at `apps/web/out`. Set `NODE_VERSION=20` if the builder offers it.
+   There is no separate “build output directory” field. Set `NODE_VERSION=20` if the builder offers it.
 
 4. Environment variables (Pages → Settings → Environment variables):
 
