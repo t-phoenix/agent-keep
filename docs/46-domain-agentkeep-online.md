@@ -44,14 +44,16 @@ Namecheap ──NS──► Cloudflare zone (agentkeep.online)
 
 1. Push `apps/web` to public GitHub (already on `main`).  
 2. Cloudflare → **Workers & Pages** → **Create** → **Pages** → Connect repo `agent-keep` (or your fork).  
-3. Build settings (static export via `apps/web/next.config.ts` `output: 'export'`):
-   - **Framework preset:** None (or Next.js — ignore SSR adapter; we export static HTML)
-   - **Root directory:** `/` (repo root — pnpm workspace)
-   - **Build command:** `pnpm install && pnpm --filter @agentkeep/web build`
-   - **Build output directory:** `apps/web/out`
-   - **Node version:** `20` (Pages → Settings → Environment variables → `NODE_VERSION=20`)
+3. Cloudflare’s Git connector is **Workers Builds** (it runs a deploy command after the build). Do not leave deploy as bare `npx wrangler deploy` — that fails at the pnpm workspace root. Build settings:
 
-   *If monorepo root fails:* set root directory to `apps/web`, install `cd ../.. && pnpm install`, build `pnpm --filter @agentkeep/web build`, output still `out` relative to `apps/web`.
+   | Field | Value |
+   |-------|--------|
+   | Root directory / Path | `/` (repo root) |
+   | Build command | `pnpm install && pnpm --filter @agentkeep/web build` |
+   | Deploy command | `npx wrangler deploy -c apps/web/wrangler.jsonc` |
+   | Non-production branch deploy command | `npx wrangler versions upload -c apps/web/wrangler.jsonc` |
+
+   There is no separate “build output directory” field. `apps/web/wrangler.jsonc` points assets at `apps/web/out`. Set `NODE_VERSION=20` if the builder offers it.
 
 4. Environment variables (Pages → Settings → Environment variables):
 
