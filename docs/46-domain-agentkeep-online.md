@@ -12,7 +12,7 @@ Related: `45`, `02`, `brand/guidelines.md`
 
 | Host | Role | When | Provider |
 |------|------|------|----------|
-| `agentkeep.online` | Marketing site | **Now** | Cloudflare Worker (`agentkeep-web`) |
+| `agentkeep.online` | Marketing site | **Now** | Cloudflare Worker (`agent-keep`) |
 | `www.agentkeep.online` | Same site, redirect to apex | **Now** | Same Worker + Redirect Rule |
 | `api.agentkeep.online` | API | **After** the challenge usage window | Cloud Run `agent-keep` (`europe-west1`), DNS-only CNAME |
 | `agent-keep-684642514120.europe-west1.run.app` | Live x402 API | **Now and through the window** | Cloud Run — this is the form / Bazaar URL |
@@ -67,7 +67,7 @@ Namecheap ──NS──► Cloudflare zone (agentkeep.online)
 
 ### B2. Custom domain on the Worker (do this after the zone is Active)
 
-Worker project name: `agentkeep-web`.
+Worker project name: `agent-keep`.
 
 1. Confirm the `*.workers.dev` URL loads the landing page first.  
 2. Worker → **Domains** (or **Settings → Domains & Routes**) → **Add → Custom domain**.  

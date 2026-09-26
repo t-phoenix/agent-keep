@@ -99,7 +99,7 @@ Wallet-scoped OS primitives for AI agents — no signup, no API keys. Paid route
 3. SSL/TLS → **Full (strict)** once origins have certs.
 
 ### 4.3 Marketing frontend (Cloudflare Pages)
-1. Build `apps/web` → Pages project `agentkeep-web`.  
+1. Build `apps/web` → Worker project `agent-keep`.  
 2. Custom domain: `agentkeep.online` + `www` → Pages.  
 3. Env: `NEXT_PUBLIC_API_BASE=https://agent-keep-684642514120.europe-west1.run.app` (challenge) or later `https://api.agentkeep.online`.
 
