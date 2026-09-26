@@ -10,7 +10,7 @@ import { HeroScene } from "./HeroScene";
 gsap.registerPlugin(ScrollTrigger);
 
 const API =
-  process.env.NEXT_PUBLIC_API_BASE || "https://agent-keep-684642514120.europe-west1.run.app";
+  process.env.NEXT_PUBLIC_API_BASE || "https://api.agentkeep.online";
 
 const chapters = [
   { id: "keep", label: "Keep", line: "State that survives the next tool call." },
@@ -419,8 +419,8 @@ curl -s -X POST ${API}/v1/notify \\
           <div className="ak-faq-item ak-reveal">
             <h3 className="ak-display">Where is the API?</h3>
             <p className="ak-muted">
-              Live API: <code className="ak-mono">{API}</code>. Site:{" "}
-              <code className="ak-mono">agentkeep.online</code>. Custom api subdomain after the challenge window.
+              Live API: <a href={API}><code className="ak-mono">{API}</code></a>. Site:{" "}
+              <code className="ak-mono">agentkeep.online</code>.
             </p>
           </div>
         </div>

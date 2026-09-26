@@ -76,6 +76,8 @@ export function loadConfig() {
     sessionHmacSecret: required("SESSION_HMAC_SECRET", "dev-change-me-to-a-long-random-string"),
     defaultDailyCapMinor: Number(optional("DEFAULT_DAILY_CAP_MINOR", "2000000")),
     publicApiBase: optional("PUBLIC_API_BASE", "http://localhost:8787"),
+    /** Marketing site. Bazaar merchant `website` and the API homepage link here. */
+    siteUrl: optional("SITE_URL", ""),
     ownerWebBase: optional("OWNER_WEB_BASE", "http://localhost:8787"),
     artifactsBase: optional("ARTIFACTS_BASE", ""),
     databaseUrl: optional("DATABASE_URL", ""),

@@ -1,8 +1,8 @@
 # 46 — Domain: `agentkeep.online` (Namecheap → site + API)
 
 **Bought:** Namecheap · **Product name unchanged:** AgentKeep  
-**Challenge week rule:** Marketing on `agentkeep.online`; **API stays** on  
-`https://agent-keep-684642514120.europe-west1.run.app` until form + early October usage window. Do **not** rotate `PUBLIC_API_BASE` / Bazaar mid-window.
+**Hosts now:** marketing `https://agentkeep.online` · API `https://api.agentkeep.online`  
+(`PUBLIC_API_BASE` / Bazaar resource URLs). The `*.run.app` URL still serves the same Cloud Run service. Do **not** rotate `payTo`.
 
 Related: `45`, `02`, `brand/guidelines.md`
 
@@ -10,11 +10,12 @@ Related: `45`, `02`, `brand/guidelines.md`
 
 ## Architecture (recommended)
 
-| Host | Role | Provider |
-|------|------|----------|
-| `agentkeep.online` / `www` | Marketing site (3D landing) | **Cloudflare Pages** |
-| `api.agentkeep.online` | API (later cutover) | Cloud Run custom domain |
-| Current `*.run.app` | Live x402 API **now** | Keep for challenge form |
+| Host | Role | When | Provider |
+|------|------|------|----------|
+| `agentkeep.online` | Marketing site | **Now** | Cloudflare Worker (`agentkeep-web`) |
+| `www.agentkeep.online` | Same site, redirect to apex | **Now** | Same Worker + Redirect Rule |
+| `api.agentkeep.online` | API | **After** the challenge usage window | Cloud Run `agent-keep` (`europe-west1`), DNS-only CNAME |
+| `agent-keep-684642514120.europe-west1.run.app` | Live x402 API | **Now and through the window** | Cloud Run — this is the form / Bazaar URL |
 
 ```
 Namecheap ──NS──► Cloudflare zone (agentkeep.online)
@@ -64,11 +65,16 @@ Namecheap ──NS──► Cloudflare zone (agentkeep.online)
 
 5. Deploy → note `*.pages.dev` URL → smoke test.
 
-### B2. Custom domain on Pages
+### B2. Custom domain on the Worker (do this after the zone is Active)
 
-1. Pages project → **Custom domains** → Add `agentkeep.online` and `www.agentkeep.online`.  
-2. Cloudflare auto-creates DNS records (proxied orange cloud).  
-3. Confirm `https://agentkeep.online` loads with logo + hero.
+Worker project name: `agentkeep-web`.
+
+1. Confirm the `*.workers.dev` URL loads the landing page first.  
+2. Worker → **Domains** (or **Settings → Domains & Routes**) → **Add → Custom domain**.  
+3. Add `agentkeep.online`, then add `www.agentkeep.online`. Cloudflare creates the DNS records (proxied).  
+4. Domain `agentkeep.online` → **Rules → Redirect Rules**: `www` → `https://agentkeep.online` (301).  
+5. Domain → **SSL/TLS → Overview** → **Full (strict)**.  
+6. Do not create a manual apex A/CNAME to Cloud Run. The apex is the marketing site.
 
 ### B3. Local preview before deploy
 
@@ -84,9 +90,11 @@ pnpm --filter @agentkeep/web dev
 
 When ready (after October window or after form if you accept URL change):
 
-1. GCP → Cloud Run → `agent-keep` → **Manage custom domains** / Domain mappings → `api.agentkeep.online`.  
-2. Follow Google’s DNS instructions (usually CNAME to `ghs.googlehosted.com` or given target).  
-3. In Cloudflare DNS: create `api` CNAME as instructed; SSL Full strict.  
+Do **not** change `PUBLIC_API_BASE`, `ARTIFACTS_BASE`, or the challenge form during the window. `OWNER_WEB_BASE` stays on the Cloud Run URL too — owner links are served by the API, not the marketing site.
+
+1. GCP → Cloud Run → `agent-keep` (`europe-west1`) → **Manage custom domains** → map `api.agentkeep.online` only (not the apex).  
+2. Google will show a CNAME (usually `api` → `ghs.googlehosted.com`).  
+3. Cloudflare DNS: that CNAME must be **DNS only** (grey cloud). An orange-cloud proxy blocks Google’s certificate. SSL mode on the zone does not apply to grey-cloud records.  
 4. Update Cloud Run secrets:
 
    ```

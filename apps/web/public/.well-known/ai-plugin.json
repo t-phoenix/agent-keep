@@ -1,0 +1,15 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "AgentKeep",
+  "name_for_model": "agentkeep",
+  "description_for_human": "Wallet memory, URL fetch, receipts, and human approval. Pay per call with USDC on Algorand.",
+  "description_for_model": "AgentKeep stores a value for the paying Algorand wallet, fetches public URL text, probes a URL, exports receipts, and opens a human approve/deny ticket. Read https://api.agentkeep.online/llms.txt before calling. Unpaid requests return HTTP 402. Pay the advertised Mainnet USDC requirement via GoPlausible and retry with the PAYMENT-SIGNATURE header.",
+  "auth": { "type": "none" },
+  "api": {
+    "type": "openapi",
+    "url": "https://api.agentkeep.online/.well-known/x402",
+    "is_user_authenticated": false
+  },
+  "logo_url": "https://agentkeep.online/brand/logo-mark.svg",
+  "legal_info_url": "https://agentkeep.online"
+}

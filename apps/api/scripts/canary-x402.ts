@@ -94,7 +94,7 @@ Or set AVM_MNEMONIC in .env (gitignored) to a Testnet payer phrase.
 const base =
   process.env.CANARY_BASE_URL?.replace(/\/$/, "") ||
   process.env.PUBLIC_API_BASE?.replace(/\/$/, "") ||
-  "https://agent-keep-684642514120.europe-west1.run.app";
+  "https://api.agentkeep.online";
 
 const memoryKey = (process.env.CANARY_MEMORY_KEY || "canary").replace(/^\/+/, "");
 /** Comma list: memory,fetch,receipts,trust,artifacts (default: memory) */
@@ -121,6 +121,18 @@ function buildCalls(): PaidCall[] {
         url: `${base}/v1/memory/${memoryKey}`,
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ value: { canary: true, at: new Date().toISOString() } }),
+      });
+    } else if (r === "memory-list") {
+      out.push({
+        name: "GET /v1/memory",
+        method: "GET",
+        url: `${base}/v1/memory`,
+      });
+    } else if (r === "memory-delete") {
+      out.push({
+        name: `DELETE /v1/memory/${memoryKey}`,
+        method: "DELETE",
+        url: `${base}/v1/memory/${memoryKey}`,
       });
     } else if (r === "fetch") {
       out.push({

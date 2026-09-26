@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 const API =
-  process.env.NEXT_PUBLIC_API_BASE || "https://agent-keep-684642514120.europe-west1.run.app";
+  process.env.NEXT_PUBLIC_API_BASE || "https://api.agentkeep.online";
 
 const links = [
   { href: `${API}/llms.txt`, label: "API llms.txt", note: "Prices, errors, discovery" },

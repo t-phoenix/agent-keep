@@ -1,0 +1,16 @@
+{
+  "name": "AgentKeep",
+  "description": "Wallet-scoped memory, fetch, receipts, trust, and human approval for AI agents. Pay per call with x402 USDC on Algorand Mainnet. No signup and no API key.",
+  "url": "https://api.agentkeep.online",
+  "documentation": "https://api.agentkeep.online/llms.txt",
+  "website": "https://agentkeep.online",
+  "payments": {
+    "protocol": "x402",
+    "network": "algorand",
+    "asset": "USDC",
+    "asa_id": "31566704",
+    "facilitator": "https://facilitator.goplausible.xyz",
+    "tag": "x402-global-challenge",
+    "discovery": "https://api.agentkeep.online/.well-known/x402"
+  }
+}

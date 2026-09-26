@@ -1,0 +1,31 @@
+# AgentKeep
+
+> Wallet-scoped memory, fetch, receipts, trust, and human approval for AI agents. No signup and no API key. Pay each call with x402 USDC on Algorand Mainnet through GoPlausible.
+>
+> Website: https://agentkeep.online
+> API: https://api.agentkeep.online
+> Live prices and payment requirements: https://api.agentkeep.online/.well-known/x402
+
+## Purpose
+
+Give an agent a place to remember a value for the wallet that paid, fetch text from a public URL, check a URL before paying it, export what that wallet spent, and pause for a human approve or deny email.
+
+## Do not use this for
+
+Web search, company enrichment, chat, or image generation.
+
+## How to pay
+
+1. Call a path on https://api.agentkeep.online. No payment returns HTTP 402 and header PAYMENT-REQUIRED.
+2. Pay the advertised Algorand Mainnet USDC amount (ASA 31566704). Facilitator: https://facilitator.goplausible.xyz. The facilitator pays the network fee.
+3. Retry the same request with header PAYMENT-SIGNATURE.
+4. Keep header X-AgentKeep-Session for 15 minutes and use it on GET /v1/memory/{key} and GET /v1/budget.
+
+## Read next
+
+- https://api.agentkeep.online/skill.md
+- https://api.agentkeep.online/agents.md
+- https://api.agentkeep.online/llms.txt
+- https://api.agentkeep.online/.well-known/x402
+- https://api.agentkeep.online/.well-known/agent-card.json
+- https://agentkeep.online/skill.md

@@ -247,7 +247,9 @@ const MERCHANT_SCHEMA = {
 
 /** x402-merchant identity for Bazaar (no logo/images). */
 export function merchantExtension(config: AppConfig): Record<string, unknown> {
-  const website = (config.publicApiBase || "").replace(/\/$/, "") || "https://agent-keep-3jimn6j2va-ew.a.run.app";
+  const website =
+    (config.siteUrl || config.publicApiBase || "").replace(/\/$/, "") ||
+    "https://agentkeep.online";
   return {
     "x402-merchant": {
       info: {
@@ -351,6 +353,7 @@ export function discoveryCatalog(config: AppConfig) {
     asa_id: MAINNET_USDC_ASA,
     payTo: config.payment.payTo,
     base_url: base,
+    website: (config.siteUrl || "https://agentkeep.online").replace(/\/$/, ""),
     docs: {
       llms_txt: `${base}/llms.txt`,
       agents_md: `${base}/agents.md`,

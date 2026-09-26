@@ -39,7 +39,9 @@ import {
   agentManifestJson,
   agentsMd,
   llmsTxt,
+  aiPluginJson,
   rootHtml,
+  skillMd,
 } from "./discovery/agent-docs.js";
 import { createMemoryStore, type Store } from "./store/memory-store.js";
 import type { S3Client } from "@aws-sdk/client-s3";
@@ -158,7 +160,11 @@ export function createApp(opts: CreateAppOptions) {
   app.get("/agents.md", (c) =>
     c.text(agentsMd(config), 200, { "content-type": "text/markdown; charset=utf-8" }),
   );
+  app.get("/skill.md", (c) =>
+    c.text(skillMd(config), 200, { "content-type": "text/markdown; charset=utf-8" }),
+  );
   app.get("/.well-known/x402", (c) => c.json(wellKnownX402(config)));
+  app.get("/.well-known/ai-plugin.json", (c) => c.json(aiPluginJson(config)));
   app.get("/.well-known/agent-card.json", (c) => c.json(agentCardJson(config)));
   app.get("/.well-known/agent.json", (c) => c.json(agentManifestJson(config)));
   app.get("/v1/discovery", (c) => c.json(discoveryCatalog(config)));

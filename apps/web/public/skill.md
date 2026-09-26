@@ -2,8 +2,6 @@
 
 Pay-per-call memory, fetch, receipts, trust, and human approval for wallet agents. No signup and no API key. Payment is x402 USDC on Algorand Mainnet through GoPlausible.
 
-The same text is published at https://api.agentkeep.online/skill.md and https://agentkeep.online/skill.md.
-
 ## Where
 
 - Website: https://agentkeep.online

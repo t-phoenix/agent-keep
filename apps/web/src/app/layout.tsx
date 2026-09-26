@@ -20,7 +20,7 @@ const mono = IBM_Plex_Mono({
 });
 
 const site = process.env.NEXT_PUBLIC_SITE_URL || "https://agentkeep.online";
-const api = process.env.NEXT_PUBLIC_API_BASE || "https://agent-keep-684642514120.europe-west1.run.app";
+const api = process.env.NEXT_PUBLIC_API_BASE || "https://api.agentkeep.online";
 
 export const metadata: Metadata = {
   metadataBase: new URL(site),
