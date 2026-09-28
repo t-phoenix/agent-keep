@@ -707,6 +707,357 @@ a:hover {
   word-break: break-all;
 }
 
+/* ——— Try / keep ——— */
+.ak-keep {
+  min-height: 100vh;
+  position: relative;
+}
+
+.ak-keep-loading {
+  padding: 8rem 1.5rem;
+}
+
+.ak-keep-inner {
+  width: min(100%, var(--ak-max));
+  margin: 0 auto;
+  padding: 7rem clamp(1.25rem, 4vw, 2.5rem) 4.5rem;
+}
+
+.ak-keep-inner h1 {
+  font-size: clamp(2.4rem, 6vw, 4.2rem);
+  line-height: 1.02;
+  margin: 0 0 1rem;
+  max-width: 16ch;
+}
+
+.ak-keep-lede {
+  max-width: 38rem;
+  margin: 0 0 0.5rem;
+  font-size: 1.08rem;
+}
+
+.ak-keep-panel {
+  margin-top: 1.5rem;
+  padding: 1.35rem 1.25rem 1.5rem;
+  border: 1px solid var(--ak-line);
+  background: rgba(18, 18, 16, 0.72);
+}
+
+.ak-keep-panel h2 {
+  font-size: clamp(1.6rem, 3vw, 2rem);
+  margin: 0 0 0.75rem;
+}
+
+.ak-keep-sub {
+  font-size: 1.35rem;
+  margin: 1.75rem 0 0.75rem;
+}
+
+.ak-keep-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.ak-keep-wallets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.ak-keep-wallet {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  min-height: 4.5rem;
+  padding: 0.9rem 1rem;
+  text-align: left;
+  color: var(--ak-paper);
+  background: transparent;
+  border: 1px solid var(--ak-line);
+  cursor: pointer;
+  font: inherit;
+}
+
+.ak-keep-wallet.is-primary {
+  grid-column: 1 / -1;
+  border-color: rgba(196, 165, 116, 0.55);
+  background: var(--ak-filament-soft);
+}
+
+.ak-keep-wallet:hover:not(:disabled) {
+  border-color: var(--ak-filament);
+  color: var(--ak-paper);
+}
+
+.ak-keep-wallet .ak-display {
+  font-size: 1.35rem;
+}
+
+.ak-keep-connected {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+}
+
+.ak-keep-connected p {
+  margin: 0;
+}
+
+.ak-keep-chip {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.65rem;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--ak-line);
+  color: var(--ak-muted);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+
+.ak-keep-chip.is-live {
+  color: var(--ak-filament);
+  border-color: rgba(196, 165, 116, 0.45);
+}
+
+.ak-keep-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0 0 0.9rem;
+  font-size: 0.92rem;
+}
+
+.ak-keep-field span {
+  color: var(--ak-muted);
+}
+
+.ak-keep-field input,
+.ak-keep-field textarea,
+.ak-keep-field select {
+  width: 100%;
+  padding: 0.7rem 0.75rem;
+  color: var(--ak-paper);
+  background: var(--ak-void);
+  border: 1px solid var(--ak-line);
+  border-radius: 0;
+  font: inherit;
+}
+
+.ak-keep-field textarea {
+  resize: vertical;
+  min-height: 6rem;
+}
+
+.ak-keep-field input:focus,
+.ak-keep-field textarea:focus,
+.ak-keep-field select:focus {
+  outline: 1px solid var(--ak-filament);
+  border-color: var(--ak-filament);
+}
+
+.ak-keep button.ak-btn-primary,
+.ak-keep button.ak-btn-ghost {
+  cursor: pointer;
+  font-family: inherit;
+  border-radius: 0;
+}
+
+.ak-keep button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.ak-keep-warn {
+  color: var(--ak-muted);
+  font-size: 0.92rem;
+}
+
+.ak-keep-hint {
+  font-size: 0.85rem;
+  margin-top: 0;
+}
+
+.ak-keep-error {
+  color: #e7c7b0;
+  margin: 1rem 0 0;
+}
+
+.ak-keep-notice {
+  color: var(--ak-filament);
+  margin: 1rem 0 0;
+}
+
+.ak-keep-list-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ak-keep-list-head h2 {
+  margin: 0;
+}
+
+.ak-keep-list-head .ak-btn-ghost {
+  padding: 0.55rem 0.8rem;
+  font-size: 0.82rem;
+}
+
+.ak-keep-keys {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+}
+
+.ak-keep-keys button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.2rem 0.75rem;
+  width: 100%;
+  padding: 0.85rem 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--ak-line);
+  cursor: pointer;
+  font: inherit;
+}
+
+.ak-keep-keys li:last-child button {
+  border-bottom: 1px solid var(--ak-line);
+}
+
+.ak-keep-keys button.is-on .ak-mono,
+.ak-keep-keys button:hover .ak-mono {
+  color: var(--ak-filament);
+}
+
+.ak-keep-keys .ak-keep-chip {
+  grid-column: 1 / -1;
+  margin-left: 0;
+  justify-self: start;
+}
+
+.ak-keep-readout {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ak-line);
+}
+
+.ak-keep-read {
+  margin: 0.35rem 0 0;
+  white-space: pre-wrap;
+}
+
+.ak-keep-pre {
+  margin: 0.5rem 0 0;
+  padding: 0.9rem 1rem;
+  overflow: auto;
+  max-height: 22rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--ak-void);
+  border: 1px solid var(--ak-line);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.ak-keep-prompt {
+  max-height: 16rem;
+}
+
+.ak-keep-md p,
+.ak-keep-md h3,
+.ak-keep-md h4 {
+  margin: 0.35rem 0;
+}
+
+.ak-keep-md-item {
+  padding-left: 0.9rem;
+}
+
+.ak-keep-md-gap {
+  height: 0.6rem;
+}
+
+.ak-keep-url {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  word-break: break-all;
+}
+
+.ak-keep-checks {
+  margin: 0.5rem 0 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.ak-keep-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.75rem 0;
+}
+
+.ak-keep-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.ak-keep-status,
+.ak-keep-manual {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.ak-keep-status li,
+.ak-keep-manual li {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  padding: 0.45rem 0;
+  border-top: 1px solid var(--ak-line);
+}
+
+.ak-keep-mark {
+  color: var(--ak-muted);
+  font-size: 0.7rem;
+  line-height: 1.7;
+}
+
+.ak-keep-mark.is-on {
+  color: var(--ak-filament);
+}
+
+.ak-keep-manual label {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.ak-keep-manual input {
+  margin-top: 0.3rem;
+  accent-color: var(--ak-filament);
+}
+
+.ak-nav-links a[aria-current="page"] {
+  color: var(--ak-paper);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -795,5 +1146,18 @@ a:hover {
 
   .ak-stage-inner {
     padding-bottom: 2.5rem;
+  }
+
+  .ak-keep-grid,
+  .ak-keep-wallets {
+    grid-template-columns: 1fr;
+  }
+
+  .ak-keep-wallet.is-primary {
+    grid-column: auto;
+  }
+
+  .ak-keep-inner h1 {
+    max-width: none;
   }
 }

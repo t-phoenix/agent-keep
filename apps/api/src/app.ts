@@ -44,6 +44,12 @@ import {
   skillMd,
 } from "./discovery/agent-docs.js";
 import { createMemoryStore, type Store } from "./store/memory-store.js";
+import {
+  CORS_ALLOW_HEADERS,
+  CORS_ALLOW_METHODS,
+  CORS_EXPOSE_HEADERS,
+  corsAllowOrigin,
+} from "./lib/cors.js";
 import type { S3Client } from "@aws-sdk/client-s3";
 
 export type AppEnv = {
@@ -105,6 +111,32 @@ export function createApp(opts: CreateAppOptions) {
     c.set("requestId", requestId);
     c.header("X-Request-Id", requestId);
     await next();
+  });
+
+  app.use("*", async (c, next) => {
+    const origin = c.req.header("origin") ?? "";
+    const allow = corsAllowOrigin(origin, config.siteUrl);
+    const apply = () => {
+      if (!allow) return;
+      c.header("Access-Control-Allow-Origin", allow);
+      c.header("Vary", "Origin");
+      c.header("Access-Control-Expose-Headers", CORS_EXPOSE_HEADERS);
+    };
+    if (c.req.method === "OPTIONS") {
+      if (allow) {
+        c.header("Access-Control-Allow-Origin", allow);
+        c.header("Vary", "Origin");
+        c.header("Access-Control-Allow-Methods", CORS_ALLOW_METHODS);
+        c.header("Access-Control-Allow-Headers", CORS_ALLOW_HEADERS);
+        c.header("Access-Control-Max-Age", "600");
+      }
+      return c.body(null, 204);
+    }
+    try {
+      await next();
+    } finally {
+      apply();
+    }
   });
 
   app.onError((err, c) => {

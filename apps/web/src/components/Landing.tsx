@@ -185,6 +185,9 @@ export function Landing() {
           <a href="#prices" onClick={() => setMenuOpen(false)}>
             Prices
           </a>
+          <a href="/keep" onClick={() => setMenuOpen(false)}>
+            Try
+          </a>
           <a className="ak-mono" href={`${API}/llms.txt`}>
             llms.txt
           </a>
@@ -219,6 +222,9 @@ export function Landing() {
           <div className="ak-cta-row">
             <a className="ak-btn-primary" href={API}>
               Call the API
+            </a>
+            <a className="ak-btn-ghost" href="/keep">
+              Try it
             </a>
             <a className="ak-btn-ghost" href="/skill">
               Agent skill
@@ -435,6 +441,7 @@ curl -s -X POST ${API}/v1/notify \\
         <div className="ak-footer-meta ak-mono">
           <a href={API}>API</a>
           <a href={`${API}/.well-known/x402`}>x402</a>
+          <a href="/keep">try</a>
           <a href="/skill">skill</a>
           <span>© {new Date().getFullYear()}</span>
         </div>

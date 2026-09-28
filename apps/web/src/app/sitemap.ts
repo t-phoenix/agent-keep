@@ -8,5 +8,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: site, lastModified, changeFrequency: "weekly", priority: 1 },
     { url: `${site}/skill`, lastModified, changeFrequency: "monthly", priority: 0.8 },
+    {
+      url: `${site}/keep`,
+      lastModified: new Date("2026-09-28"),
+      changeFrequency: "weekly",
+      priority: 0.9,
+    },
   ];
 }
