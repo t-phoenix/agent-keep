@@ -15,12 +15,16 @@ export const CORS_ALLOW_HEADERS = [
   "X-AgentKeep-Session",
   "X-AgentKeep-Mock-Pay",
   "X-Request-Id",
+  // @x402/fetch sets this on the paid retry. It is a request header name the
+  // browser lists in preflight, so it must be allowed or the retry is blocked.
+  "Access-Control-Expose-Headers",
 ].join(", ");
 
 export const CORS_EXPOSE_HEADERS = [
   "X-AgentKeep-Session",
   "PAYMENT-REQUIRED",
   "PAYMENT-RESPONSE",
+  "X-PAYMENT-RESPONSE",
   "Payment-Required",
   "X-Request-Id",
 ].join(", ");

@@ -19,7 +19,8 @@ describe("integration: browser CORS", () => {
       headers: {
         origin: "https://agentkeep.online",
         "access-control-request-method": "PUT",
-        "access-control-request-headers": "content-type,payment-signature,idempotency-key",
+        "access-control-request-headers":
+          "content-type,payment-signature,idempotency-key,access-control-expose-headers",
       },
     });
     expect(res.status).toBe(204);
@@ -28,6 +29,7 @@ describe("integration: browser CORS", () => {
     expect(allow).toContain("payment-signature");
     expect(allow).toContain("idempotency-key");
     expect(allow).toContain("content-type");
+    expect(allow).toContain("access-control-expose-headers");
   });
 
   it("exposes the session header on a settled response", async () => {
@@ -59,6 +61,7 @@ describe("integration: browser CORS", () => {
     expect(unpaid.headers.get("payment-required")).toBeTruthy();
     const expose = (unpaid.headers.get("access-control-expose-headers") ?? "").toLowerCase();
     expect(expose).toContain("payment-required");
+    expect(expose).toContain("x-payment-response");
   });
 
   it("does not echo a foreign origin", async () => {
