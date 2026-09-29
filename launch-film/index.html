@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  @font-face { font-family: Fraunces; src: url("fonts/fraunces-600.woff2") format("woff2"); font-weight: 600; font-style: normal; }
+  @font-face { font-family: Fraunces; src: url("fonts/fraunces-500.woff2") format("woff2"); font-weight: 500; font-style: normal; }
+  @font-face { font-family: Plex; src: url("fonts/plex-400.woff2") format("woff2"); font-weight: 400; font-style: normal; }
+  @font-face { font-family: Plex; src: url("fonts/plex-500.woff2") format("woff2"); font-weight: 500; font-style: normal; }
+  @font-face { font-family: Sans; src: url("fonts/sans-400.woff2") format("woff2"); font-weight: 400; font-style: normal; }
+  html, body { margin: 0; background: #0E0E0E; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+const W = 1920, H = 1080, DUR = 90;
+const VOID = "#0E0E0E", PAPER = "#F4F4F0", INK = "#1A1A1A", FILAMENT = "#C4A574", MUTED = "#8A8680";
+const g = document.getElementById("c").getContext("2d");
+
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+function spring(t, k = 140, d = 22) {
+  if (t <= 0) return 0;
+  const w0 = Math.sqrt(k), z = d / (2 * w0);
+  if (z < 1) {
+    const wd = w0 * Math.sqrt(1 - z * z);
+    return 1 - Math.exp(-z * w0 * t) * (Math.cos(wd * t) + (z * w0 / wd) * Math.sin(wd * t));
+  }
+  return 1 - Math.exp(-w0 * t) * (1 + w0 * t);
+}
+function enter(t, delay = 0) { return spring(t - delay, 120, 22); }
+function ease(t) { t = clamp(t); return t * t * (3 - 2 * t); }
+
+function text(str, x, y, font, color, align = "center") {
+  g.font = font;
+  g.fillStyle = color;
+  g.textAlign = align;
+  g.textBaseline = "middle";
+  g.fillText(str, Math.round(x), Math.round(y));
+}
+function roundRect(x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+function logo(img, x, y, h) {
+  const w = img.width * (h / img.height);
+  g.drawImage(img, Math.round(x - w / 2), Math.round(y - h / 2), w, h);
+}
+
+const imgs = {};
+window.assetsReady = false;
+function load(name, src) {
+  return new Promise((res, rej) => {
+    const i = new Image();
+    i.onload = () => { imgs[name] = i; res(); };
+    i.onerror = () => rej(new Error(src));
+    i.src = src;
+  });
+}
+Promise.all([
+  load("algo", "assets/algo-light.png"),
+  load("x402", "assets/x402-light.png"),
+  load("gp", "assets/goplausible-key.png"),
+  load("hero", "assets/shots/site-hero.png"),
+  load("features", "assets/shots/site-features.png"),
+  load("how", "assets/shots/site-how.png"),
+  load("devs", "assets/shots/site-developers.png"),
+  load("prices", "assets/shots/site-prices.png"),
+  load("keep", "assets/shots/app-keep.png"),
+  load("skill", "assets/shots/site-skill.png"),
+  load("llms", "assets/shots/api-llms.png"),
+  load("err", "assets/shots/api-402.png"),
+]).then(() => { window.assetsReady = true; });
+
+function ring(cx, cy, R, t, filamentAt) {
+  const a = clamp(enter(t, 0.04));
+  g.beginPath();
+  g.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * a);
+  g.strokeStyle = PAPER;
+  g.lineWidth = R * 0.42;
+  g.lineCap = "butt";
+  g.stroke();
+  const f = clamp(enter(t, filamentAt));
+  if (f > 0.001) {
+    g.beginPath();
+    g.arc(cx, cy, R, -0.85, -0.85 + 0.87 * f);
+    g.strokeStyle = FILAMENT;
+    g.lineWidth = Math.max(5, R * 0.085);
+    g.lineCap = "round";
+    g.stroke();
+  }
+}
+
+function chapter(label, t) {
+  const s = enter(t, 0.12);
+  g.save();
+  g.globalAlpha = clamp(s);
+  g.translate(0, (1 - s) * 10);
+  text(label, W / 2, 58, "500 18px Plex", MUTED);
+  g.restore();
+}
+
+function shot(img, t, dur, opts = {}) {
+  const s = enter(t, 0.02);
+  const z = 1 + (opts.zoom || 0) * ease(t / Math.max(dur, 0.01));
+  const windowH = opts.window || 1;
+  const srcH = img.height * windowH / z;
+  const srcW = img.width / z;
+  const maxPan = Math.max(0, img.height - srcH);
+  const pan = maxPan * ease(clamp((t - 0.35) / Math.max(dur - 0.8, 0.01))) * (opts.pan || 0);
+  const sx = (img.width - srcW) / 2;
+  const sy = clamp(pan, 0, maxPan);
+  const availW = 1680;
+  const availH = 860;
+  const fit = Math.min(availW / srcW, availH / srcH);
+  const dw = srcW * fit;
+  const dh = srcH * fit;
+  const dx = (W - dw) / 2;
+  const dy = 96 + (1 - clamp(s)) * 22;
+  g.save();
+  g.globalAlpha = clamp(s * 1.15);
+  roundRect(dx, dy, dw, dh, 18);
+  g.clip();
+  g.drawImage(img, sx, sy, srcW, srcH, dx, dy, dw, dh);
+  g.restore();
+  g.save();
+  g.globalAlpha = clamp(s);
+  roundRect(dx, dy, dw, dh, 18);
+  g.strokeStyle = "rgba(244,244,240,0.16)";
+  g.lineWidth = 1.5;
+  g.stroke();
+  g.restore();
+}
+
+function hook(t) {
+  const y = (1 - enter(t, 0.08)) * 28;
+  g.save();
+  g.translate(0, y);
+  text("Agents forget.", W / 2, H / 2 - 8, "600 148px Fraunces", PAPER);
+  const line = enter(t, 0.55);
+  const lw = 360 * clamp(line);
+  g.fillStyle = FILAMENT;
+  g.fillRect((W - lw) / 2, H / 2 + 92, lw, 4);
+  g.restore();
+}
+
+function mark(t) {
+  ring(W / 2, H / 2 - 86, 112, t, 0.5);
+  const s = enter(t, 0.7);
+  g.save();
+  g.globalAlpha = clamp(s);
+  g.translate(0, (1 - s) * 18);
+  text("AgentKeep", W / 2, H / 2 + 130, "600 86px Fraunces", PAPER);
+  text("Keep going.", W / 2, H / 2 + 198, "400 30px Sans", MUTED);
+  g.restore();
+}
+
+function live(name, label, opts = {}) {
+  return (t, dur) => {
+    chapter(label, t);
+    shot(imgs[name], t, dur, opts);
+  };
+}
+
+function proof(t) {
+  chapter("11  —  LIVE GET  /v1/memory/plan", t);
+  const s = enter(t, 0.06);
+  const img = imgs.err;
+  const cw = 1720, ch = 210;
+  const x = (W - cw) / 2, y = 340 + (1 - clamp(s)) * 16;
+  g.save();
+  g.globalAlpha = clamp(s);
+  roundRect(x, y, cw, ch, 22);
+  g.fillStyle = PAPER;
+  g.fill();
+  text("api.agentkeep.online", x + 40, y + 46, "500 16px Plex", MUTED, "left");
+  g.save();
+  roundRect(x + 28, y + 78, cw - 56, 96, 10);
+  g.clip();
+  g.drawImage(img, 0, 66, 1960, 34, x + 28, y + 86, cw - 56, (cw - 56) * (34 / 1960));
+  g.restore();
+  g.restore();
+  const u = enter(t, 0.4);
+  g.save();
+  g.globalAlpha = clamp(u);
+  text("session_required", W / 2, y + ch + 64, "500 28px Plex", FILAMENT);
+  text("Free reads need a session or payment proof.", W / 2, y + ch + 108, "400 26px Sans", MUTED);
+  g.restore();
+}
+
+function rail(t) {
+  chapter("12  —  USDC ON ALGORAND", t);
+  const s = enter(t, 0.08);
+  g.save();
+  g.globalAlpha = clamp(s);
+  text("One payTo. GoPlausible.", W / 2, 168, "500 54px Fraunces", PAPER);
+  g.restore();
+  const cols = [
+    { img: imgs.algo, h: 156, label: "Algorand", delay: 0.25 },
+    { img: imgs.x402, h: 108, label: "x402", delay: 0.4 },
+    { img: imgs.gp, h: 96, label: "GoPlausible", delay: 0.55 },
+  ];
+  const xs = [W / 2 - 520, W / 2, W / 2 + 520];
+  cols.forEach((c, i) => {
+    const k = enter(t, c.delay);
+    g.save();
+    g.globalAlpha = clamp(k);
+    g.translate(0, (1 - k) * 16);
+    logo(c.img, xs[i], 520, c.h);
+    text(c.label, xs[i], 680, "400 24px Plex", MUTED);
+    g.restore();
+  });
+}
+
+function lockup(t) {
+  ring(W / 2, H / 2 - 168, 72, t, 0.35);
+  const s = enter(t, 0.45);
+  g.save();
+  g.globalAlpha = clamp(s);
+  text("AgentKeep", W / 2, H / 2 + 8, "600 84px Fraunces", PAPER);
+  text("Keep going.", W / 2, H / 2 + 86, "400 30px Sans", MUTED);
+  g.restore();
+  const u = enter(t, 0.9);
+  g.save();
+  g.globalAlpha = clamp(u);
+  text("agentkeep.online", W / 2, H / 2 + 168, "500 24px Plex", FILAMENT);
+  g.restore();
+  const v = enter(t, 1.25);
+  g.save();
+  g.globalAlpha = clamp(v);
+  text("No signup.   $2 daily cap.   api.agentkeep.online", W / 2, H / 2 + 220, "400 22px Sans", MUTED);
+  g.restore();
+  const demo = enter(t, 4.8);
+  g.save();
+  g.globalAlpha = clamp(demo);
+  g.translate(0, (1 - clamp(demo)) * 12);
+  text("Let's check out the demo.", W / 2, H / 2 + 292, "500 40px Fraunces", PAPER);
+  g.restore();
+}
+
+const SCENES = [
+  { from: 0, to: 5.4, draw: hook },
+  { from: 5.4, to: 10.8, draw: mark },
+  { from: 10.8, to: 18.0, draw: live("hero", "03  —  AGENTKEEP.ONLINE", { zoom: 0.045 }) },
+  { from: 18.0, to: 25.2, draw: live("features", "04  —  PRIMITIVES", { pan: 0.55, window: 0.82 }) },
+  { from: 25.2, to: 32.4, draw: live("how", "05  —  UNPAID TO A SESSION", { zoom: 0.03 }) },
+  { from: 32.4, to: 39.6, draw: live("devs", "06  —  COPY, SETTLE, KEEP", { zoom: 0.03 }) },
+  { from: 39.6, to: 46.2, draw: live("prices", "07  —  USDC PER CALL", { zoom: 0.03 }) },
+  { from: 46.2, to: 52.8, draw: live("keep", "08  —  TRY  /keep", { zoom: 0.02 }) },
+  { from: 52.8, to: 58.8, draw: live("skill", "09  —  AGENT SKILL", { pan: 0.25, window: 0.86 }) },
+  { from: 58.8, to: 66.0, draw: live("llms", "10  —  API  /llms.txt", { pan: 0.18, window: 0.62 }) },
+  { from: 66.0, to: 72.6, draw: proof },
+  { from: 72.6, to: 79.2, draw: rail },
+  { from: 79.2, to: 90.01, draw: lockup },
+];
+
+function draw(t) {
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = VOID;
+  g.fillRect(0, 0, W, H);
+  const scene = SCENES.find((s) => t >= s.from && t < s.to);
+  if (!scene) return;
+  const local = t - scene.from;
+  const open = clamp(spring(local, 70, 20));
+  g.save();
+  if (open < 0.992) {
+    g.beginPath();
+    g.arc(W / 2, H / 2, Math.hypot(W, H) * 0.72 * Math.max(open, 0.001), 0, Math.PI * 2);
+    g.clip();
+  }
+  scene.draw(local, scene.to - scene.from);
+  g.restore();
+}
+
+window.seek = (t) => { draw(t); return true; };
+if (!navigator.webdriver) {
+  const t0 = performance.now();
+  (function loop() {
+    draw(((performance.now() - t0) / 1000) % DUR);
+    requestAnimationFrame(loop);
+  })();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  @font-face { font-family: Fraunces; src: url("fonts/fraunces-600.woff2") format("woff2"); font-weight: 600; font-style: normal; }
+  @font-face { font-family: Fraunces; src: url("fonts/fraunces-500.woff2") format("woff2"); font-weight: 500; font-style: normal; }
+  @font-face { font-family: Plex; src: url("fonts/plex-400.woff2") format("woff2"); font-weight: 400; font-style: normal; }
+  @font-face { font-family: Plex; src: url("fonts/plex-500.woff2") format("woff2"); font-weight: 500; font-style: normal; }
+  @font-face { font-family: Sans; src: url("fonts/sans-400.woff2") format("woff2"); font-weight: 400; font-style: normal; }
+  html, body { margin: 0; background: #0E0E0E; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+const W = 1920, H = 1080, DUR = 18;
+const VOID = "#0E0E0E", PAPER = "#F4F4F0", INK = "#1A1A1A", FILAMENT = "#C4A574", MUTED = "#8A8680";
+const g = document.getElementById("c").getContext("2d");
+
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+function spring(t, k = 170, d = 22) {
+  if (t <= 0) return 0;
+  const w0 = Math.sqrt(k), z = d / (2 * w0);
+  if (z < 1) {
+    const wd = w0 * Math.sqrt(1 - z * z);
+    return 1 - Math.exp(-z * w0 * t) * (Math.cos(wd * t) + (z * w0 / wd) * Math.sin(wd * t));
+  }
+  return 1 - Math.exp(-w0 * t) * (1 + w0 * t);
+}
+function enter(t, delay = 0) { return spring(t - delay, 150, 24); }
+function exit(t, at) { return spring(t - at, 200, 26); }
+
+function text(str, x, y, font, color, align = "center") {
+  g.font = font;
+  g.fillStyle = color;
+  g.textAlign = align;
+  g.textBaseline = "middle";
+  g.fillText(str, Math.round(x), Math.round(y));
+}
+function roundRect(x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+function logo(img, x, y, h) {
+  const w = img.width * (h / img.height);
+  g.drawImage(img, Math.round(x - w / 2), Math.round(y - h / 2), w, h);
+  return w;
+}
+
+const imgs = {};
+window.assetsReady = false;
+function load(name, src) {
+  return new Promise((res, rej) => {
+    const i = new Image();
+    i.onload = () => { imgs[name] = i; res(); };
+    i.onerror = () => rej(new Error(src));
+    i.src = src;
+  });
+}
+Promise.all([
+  load("algo", "assets/algo-light.png"),
+  load("x402", "assets/x402-light.png"),
+  load("gp", "assets/goplausible-key.png"),
+]).then(() => { window.assetsReady = true; });
+
+function ring(cx, cy, R, t, filamentAt) {
+  const a = clamp(enter(t, 0.05));
+  g.beginPath();
+  g.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * a);
+  g.strokeStyle = PAPER;
+  g.lineWidth = R * 0.42;
+  g.lineCap = "butt";
+  g.stroke();
+  const f = clamp(enter(t, filamentAt));
+  if (f > 0.001) {
+    g.beginPath();
+    g.arc(cx, cy, R, -0.85, -0.85 + 0.87 * f);
+    g.strokeStyle = FILAMENT;
+    g.lineWidth = Math.max(6, R * 0.09);
+    g.lineCap = "round";
+    g.stroke();
+  }
+}
+
+function hook(t) {
+  const y = (1 - enter(t, 0.08)) * 36 - exit(t, 2.95) * 50;
+  g.save();
+  g.translate(0, y);
+  text("Agents forget.", W / 2, H / 2 - 10, "600 156px Fraunces", PAPER);
+  const line = enter(t, 0.7);
+  const lw = 420 * line;
+  g.fillStyle = FILAMENT;
+  g.fillRect((W - lw) / 2, H / 2 + 92, lw, 5);
+  g.restore();
+}
+
+function mark(t) {
+  const y = (1 - enter(t, 0.02)) * 28 - exit(t, 3.15) * 40;
+  g.save();
+  g.translate(0, y);
+  ring(W / 2, H / 2 - 70, 118, t, 0.55);
+  const s = enter(t, 0.85);
+  g.save();
+  g.translate(W / 2, H / 2 + 150 + (1 - s) * 24);
+  g.globalAlpha = clamp(s);
+  text("AgentKeep", 0, 0, "600 92px Fraunces", PAPER);
+  text("Keep going.", 0, 78, "400 32px Sans", MUTED);
+  g.restore();
+  g.restore();
+}
+
+function memory(t) {
+  const s = enter(t, 0.04);
+  const leave = exit(t, 3.45);
+  const cw = 980, ch = 500;
+  const cx = W / 2, cy = H / 2 + (1 - s) * 36 - leave * 28;
+  const x = cx - cw / 2, y = cy - ch / 2;
+  g.save();
+  g.translate(cx, cy);
+  g.scale(0.96 + 0.04 * s, 0.96 + 0.04 * s);
+  g.translate(-cx, -cy);
+  roundRect(x, y, cw, ch, 28);
+  g.fillStyle = PAPER;
+  g.fill();
+
+  text("MEMORY", x + 64, y + 64, "500 18px Plex", FILAMENT, "left");
+  text("State that survives the next call.", x + 64, y + 124, "500 42px Fraunces", INK, "left");
+
+  g.strokeStyle = "rgba(26,26,26,0.12)";
+  g.lineWidth = 1;
+  g.beginPath();
+  g.moveTo(x + 64, y + 176);
+  g.lineTo(x + cw - 64, y + 176);
+  g.stroke();
+
+  const value = "Keep going.";
+  const n = Math.max(0, Math.min(value.length, Math.floor((t - 0.55) / 0.055)));
+  text("key", x + 64, y + 230, "400 16px Plex", MUTED, "left");
+  text("launch-notes", x + 64, y + 262, "500 28px Plex", INK, "left");
+  text("value", x + 64, y + 324, "400 16px Plex", MUTED, "left");
+  text(value.slice(0, n) + (n < value.length && t > 0.55 ? "|" : ""), x + 64, y + 360, "500 32px Plex", INK, "left");
+
+  const settled = t > 2.35;
+  const pill = settled ? "settled" : "pay";
+  const pillW = settled ? 196 : 132;
+  roundRect(x + cw - 64 - pillW, y + ch - 92, pillW, 48, 24);
+  g.fillStyle = INK;
+  g.fill();
+  text(pill, x + cw - 64 - pillW / 2, y + ch - 68, "500 18px Plex", PAPER);
+
+  text("PUT  /v1/memory/launch-notes", x + 64, y + ch - 68, "400 20px Plex", MUTED, "left");
+  text("$0.001", x + 560, y + ch - 68, "500 20px Plex", FILAMENT, "left");
+
+  if (t < 2.42) {
+    const cur = enter(t, 1.7);
+    const cxr = x + 280 + (x + cw - 150 - (x + 280)) * cur;
+    const cyr = y + 250 + (y + ch - 80 - (y + 250)) * cur;
+    const click = t > 2.15 && t < 2.4 ? 0.86 : 1;
+    g.save();
+    g.translate(cxr, cyr);
+    g.scale(click, click);
+    g.fillStyle = INK;
+    g.beginPath();
+    g.moveTo(0, 0); g.lineTo(0, 26); g.lineTo(7, 20); g.lineTo(12, 32); g.lineTo(17, 30); g.lineTo(12, 18); g.lineTo(22, 18);
+    g.closePath();
+    g.fill();
+    g.restore();
+  }
+  g.restore();
+}
+
+function rail(t) {
+  const y = (1 - enter(t, 0.02)) * 30 - exit(t, 3.05) * 36;
+  g.save();
+  g.translate(0, y);
+  const titleS = enter(t, 0.05);
+  g.globalAlpha = clamp(titleS);
+  text("USDC on Algorand.", W / 2, 250, "600 78px Fraunces", PAPER);
+  g.globalAlpha = 1;
+
+  const cols = [
+    { img: imgs.algo, h: 168, label: "Algorand", delay: 0.22 },
+    { img: imgs.x402, h: 118, label: "", delay: 0.38 },
+    { img: imgs.gp, h: 104, label: "", delay: 0.54 },
+  ];
+  const xs = [W / 2 - 540, W / 2, W / 2 + 540];
+  cols.forEach((c, i) => {
+    const s = enter(t, c.delay);
+    g.save();
+    g.globalAlpha = clamp(s);
+    g.translate(0, (1 - s) * 22);
+    logo(c.img, xs[i], 530, c.h);
+    if (c.label) text(c.label, xs[i], 690, "400 28px Plex", MUTED);
+    g.restore();
+  });
+  g.restore();
+}
+
+function lockup(t) {
+  const y = (1 - enter(t, 0.02)) * 24;
+  g.save();
+  g.translate(0, y);
+  ring(W / 2, H / 2 - 150, 78, t, 0.4);
+  const s = enter(t, 0.55);
+  g.globalAlpha = clamp(s);
+  text("AgentKeep", W / 2, H / 2 + 40, "600 88px Fraunces", PAPER);
+  text("Keep going.", W / 2, H / 2 + 118, "400 32px Sans", MUTED);
+  const u = enter(t, 0.9);
+  g.globalAlpha = clamp(u);
+  text("agentkeep.online", W / 2, H / 2 + 190, "500 22px Plex", FILAMENT);
+  g.globalAlpha = clamp(enter(t, 1.15));
+  text("No signup.  $2 daily cap.", W / 2, H / 2 + 248, "400 24px Sans", MUTED);
+  g.restore();
+}
+
+const SCENES = [
+  { from: 0, to: 3.6, draw: hook },
+  { from: 3.6, to: 7.2, draw: mark },
+  { from: 7.2, to: 10.8, draw: memory },
+  { from: 10.8, to: 14.4, draw: rail },
+  { from: 14.4, to: 18.01, draw: lockup },
+];
+
+function draw(t) {
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = VOID;
+  g.fillRect(0, 0, W, H);
+  g.letterSpacing = "0px";
+  for (const s of SCENES) {
+    if (t >= s.from && t < s.to) s.draw(t - s.from);
+  }
+}
+window.seek = (t) => { draw(t); return true; };
+if (!navigator.webdriver) {
+  const t0 = performance.now();
+  (function loop() { draw(((performance.now() - t0) / 1000) % DUR); requestAnimationFrame(loop); })();
+}
+</script>
+</body>
+</html>

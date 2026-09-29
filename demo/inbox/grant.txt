@@ -1,0 +1,10 @@
+Finish the grant notes from yesterday.
+Keep the three open questions at the top, and do not start the application until the human says the budget line is right.
+
+Questions
+1. Is the prize pool $100k plus 500k ALGO, or is the ALGO pool only for the top 20?
+2. Does the demo have to stay under 5 minutes?
+3. Which wallet is payTo, and which wallet is the one that pays?
+
+Notes
+The public page is the challenge site. The agent probed it, fetched the text, and saved this note under the paying wallet so a different agent can continue tomorrow. The image beside it is the mark used on the site.

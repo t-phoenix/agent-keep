@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  @font-face { font-family: Plex; src: url("fonts/plex-500.woff2") format("woff2"); font-weight: 500; }
+  html, body { margin: 0; background: #0E0E0E; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="100"></canvas>
+<script>
+const g = document.getElementById("c").getContext("2d");
+window.assetsReady = false;
+document.fonts.ready.then(() => { window.assetsReady = true; });
+window.drawCaption = (str) => {
+  g.clearRect(0, 0, 1920, 100);
+  g.fillStyle = "#0E0E0E";
+  g.fillRect(0, 0, 1920, 100);
+  g.fillStyle = "#C4A574";
+  g.fillRect(910, 14, 100, 2);
+  g.font = "500 26px Plex";
+  g.fillStyle = "#F4F4F0";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.fillText(str, 960, 56);
+  return true;
+};
+</script>
+</body>
+</html>

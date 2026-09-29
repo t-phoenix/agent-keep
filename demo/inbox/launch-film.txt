@@ -1,0 +1,41 @@
+Launch film session
+
+Film: launch-film/out/agentkeep-launch.mp4
+Poster: launch-film/out/poster.png
+18 seconds, 1920x1080, 30 fps, audio at 100 BPM.
+Method: window.seek(t) in launch-film/index.html, Playwright frames, ffmpeg. Closed-form springs. No timers in the render.
+
+Story
+0:00 Agents forget.
+0:03 AgentKeep ring and Keep going.
+0:07 Memory card. PUT /v1/memory/launch-notes, $0.001, then settled.
+0:10 Algorand, x402, GoPlausible. USDC on Algorand.
+0:14 Lockup. agentkeep.online. No signup. $2 daily cap.
+
+Marks used
+AgentKeep aperture, paper on void, filament #C4A574.
+Algorand mark in paper.
+x402 wordmark in paper, from x402.org.
+GoPlausible wordmark in its green, from goplausible.xyz.
+
+Palette
+Void #0E0E0E, paper #F4F4F0, filament #C4A574, muted #8A8680.
+Type: Fraunces, Source Sans 3, IBM Plex Mono.
+
+References studied
+Leo, Apple framework: intention, three colors, one shot one idea, space, springs, 90–110 BPM, few sound effects.
+Movez, motion studio: seek(t), springs, real assets, contact sheet before the full render.
+
+Prompt
+You are revising launch-film/index.html. It is a pure window.seek(t) film. Do not add CSS transitions, timers, or Math.random. Keep void #0E0E0E, paper #F4F4F0, filament #C4A574, Fraunces, Source Sans 3, IBM Plex Mono. Real marks only: assets/algo-light.png, assets/x402-light.png, assets/goplausible-key.png. Never redraw those logos. One idea per shot. Springs only. Score stays near 100 BPM, sparse, no risers.
+
+Pick one example and do only that pass. Show stills at 1.6, 5.4, 9.2, 12.6, 16.6 before a full render.
+
+Example A, Apple lockup, the current film.
+Hold the five-shot story. Fix only these: overlap the rail exit with the lockup entrance so the cut is not a blank frame. Put the word Algorand in Fraunces under the mark at the same optical size as the x402 wordmark, and drop any second label. Add one proof number as its own beat between memory and the rail: "$2" in huge Fraunces, caption "before the work." Replace the sine bed with the same BPM, add a quiet fifth on downbeats, and keep clicks only on the typewriter and the pay click.
+
+Example B, one shape, never cut.
+Same product, same colors, 16 seconds, 1920x1080. One rounded rect morphs through: logo ring, CTA "Keep", memory field that types launch-notes, loader, settled check, receipt "$0.001", chart of the daily cap filling to $2, then the ring again. Last frame equals the first. Cursor drives every change. Tiny spring overshoot on the cursor, none on type.
+
+Example C, vertical launch.
+Same story as Example A, reframed to 1080x1920. Do not crop the 16:9. Stack the three marks vertically with 160px of void between them. Hook type is "Agents forget." at 120px. End card is the ring, AgentKeep, agentkeep.online. Export a second file out/agentkeep-launch-vertical.mp4 from the same scene list.

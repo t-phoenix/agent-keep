@@ -45,3 +45,9 @@ id_rsa
 **/secrets/
 .neon
 .algorand/
+demo/.session
+demo/out/
+
+# Launch film renders, voice takes, and contact stills
+launch-film/out/
+launch-film/node_modules/

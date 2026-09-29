@@ -1,0 +1,6 @@
+#!/bin/sh
+cd "$(dirname "$0")/.."
+export CANARY_BASE_URL="${CANARY_BASE_URL:-https://api.agentkeep.online}"
+export CANARY_NETWORK=mainnet
+export DEMO_MODE="${DEMO_MODE:-test}"
+exec pnpm --filter @agentkeep/api exec tsx scripts/demo-cli.ts read "$@"
